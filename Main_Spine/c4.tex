@@ -1,69 +1,744 @@
 % !TeX root = ../main.tex
 
-\xchapter{参考文献与交叉引用}{Crossreferences}
+\xchapter{异构缓存系统净空缓存管理机制}{Headroom Management Scheme for Hybrid Buffer System}
 
-注意，当引用时出现 [?] 时，可能有有多种原因造成，首先请确定是否使用了 biber 编译模板，再请注意查看辅助文件是否正常生成，此种问题大部分情况是使用不当而非模板设置造成的。
-
-\xsection{基于 Label 的引用}{Ref labels}
-
-% \xsubsection{引用公式}{Ref equations}
-
-% 引用公式使用 \clist{\eqref{label}} 命令，将引用公式的编号（带括号）：
-
-% \begin{texcode}[]{}
-%   如式 \eqref{eqn:c1:diff} 所示
-% \end{texcode}
-
-% \xsubsection{引用其他内容}{Ref other labels}
-
-基于 \clist{\label{}} 编号的引用，可以通过 \clist[columbiablue]{cleveref} 提供的 \clist{\cref} 实现，它可以通过识别 label 的类型，自动为引用添加前缀。具体的使用方法可以查看该宏包的文档。
-
-应当这样使用 \clist{\label{TYPE:NAME}}，其中 TYPE 指此标签的类型，应当使用模板提供的或自行指定；NAME 为此标签的名称，可以自行定义，不应当重复。模板为所有举例过的环境预设了类型，其中在\cref{section:Environments for math}中预设了 $12$种数学环境，则其 TYPE 与该环境的「环境」列保持一致，其余类型的定义见下：
-
-\begin{texcode}[]{}
-  如\cref{equation:c1:diff} 所示 \\
-  如\crefrange{equation:c1:exp}{equation:c1:diff} 所示 \\
-  如\cref{equation:c1:diff,equation:c1:exp,equation:c1:mdl:cstr_dis} 所示 \\
-  如\cref{figure:icon} 所示，如\cref{subfigure:icon} 所示 \\
-  如\cref{table:methodcompare} 所示 \\
-  如\cref{algorithm:SOH} 所示 \\
-  如\cref{listing:a_label} 所示 \\
-  如\cref{theorem:pt} 所示
-\end{texcode}
-
-模板只对数学公式设置了多种引用时的样式，并未对其他类型设置，如果有使用的需要，请自行查看手册与模板文件模仿修改。
-
-\xsection{参考文献}{References}
-
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  \begin{enumerate}[leftmargin=0.5cm]
-    \item 参考文献的著录格式应符合国家标准GB/T 7714-2015《文后参考文献著录规则》。参考文献中每条项目应齐全。
-    \item 参考文献里面标点符号：英文文献用半角,中文文献用全角。
-  \end{enumerate}
-\end{tcolorbox}
-
-\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
-  \begin{enumerate}[leftmargin=0.5cm]
-    \item 文后著录的参考文献务必实事求是。论文中引用过的文献必须著录，未引用的文献不得出现。应遵循学术道德规范，避免涉嫌抄袭、剽窃等学术不端行为。
-    \item 参考文献一般应是作者亲自考察过的对学位论文有参考价值的文献，除特殊情况外，一般不应间接引用。
-    \item 参考文献应有权威性，要注意引用最新的文献。
-    \item 参考文献的数量：
-    博士学位论文，一般应在80篇以上，其中，期刊文献60篇以上，国外文献30篇以上，均以近5年的文献为主。
-    硕士学位论文，一般应在30篇以上，其中，期刊文献不少于20篇，国外文献不少于10篇，均以近5年的文献为主。
-  \end{enumerate}
-\end{tcolorbox}
-
-模板使用 biblatex 编译参考文献，默认采用顺序编码制，有多种引用参考文献的方式，请自行查阅 biblatex-gbt-7715-2015 宏包，即 \clist{texdoc biblatex-gbt-7714-2015}。
-
-在导言区使用\clist{\addbibresource{path/to/.bib file}}添加参考文献数据库，默认参考文献数据库位于 ./References/ 下。
-
-这里主要举例三种引用方式，使用 \clist{\cite{ref}} 的引用结果作为上标出现在正文中，使用 \clist{\parencite{ref}} 的引用结果作为正文内容（一个名词）出现在正文中，使用 \clist{\footfullcite{ref}} 的引用结果作为脚注内容在脚注部分出现。
+本章首先指出异构缓存系统现行净空缓存管理策略存在的低效性和性能损害等问题，然后分析问题的主要来源，提出了一种适用于异构缓存系统架构的动态共享缓存管理策略H-DSH。H-DSH以片外缓存为中心，一方面，将片外缓存作为主要共享缓存空间进行动态分配，尽可能将缓存积累限制在片外缓存，以缓解片上缓存的容量压力；另一方面，在片上为端口静态预留保底净空缓存池避免丢包，同时在合适的时机将拥塞流量回流到片上，以避免片外缓存的带宽瓶颈。本章\ref{c4:s1:current buffer system scheme}节描述了异构缓存系统现行缓存管理策略H-SIH的具体机制。\ref{c4:s2:problem analysis}节指出H-SIH在片外缓存利用、PFC附带损害和长距离传输方面存在的问题并分析问题来源。\ref{c4:s3:hdsh design}节提出H-DSH的设计目标、基本思想、主要挑战以及各个模块的实现方案。\ref{c4:s4:hdsh implementation}节详细阐述了H-DSH的具体实现细节。\ref{c4:s5:hdsh evaluation}节通过实验验证H-DSH的基本性能表现和复杂网络场景适应性。\ref{c4:s6:brief summary}节总结本章主要工作。
 
 
+\xsection{现行缓存管理机制}{Current Buffer System Scheme}
+\label{c4:s1:current buffer system scheme}
 
-\begin{texcode}[]{}
-  这是一个比较常见的问题 \cite{barella_situ_2021}。可以发现 xxxx \cite{atta_enhanced_2021}。\\
-  文献\parencite{张燕2013电气自动化在电气工程中的应用探讨} 提出了 xxx，文献 \parencite{黄雪芳2012探讨电气工程中自动化技术的应用} 则提出了 yyy。
-\end{texcode}
+异构缓存系统通常部署于路由器。不同于片上缓存系统，MMU需要同时对片上缓存和片外缓存进行管理，缓存管理策略的制定需要考虑片上缓存和片外缓存的不同物理特性。经过调研发现，主流厂商对异构缓存系统的普遍认识为以片上缓存为中心，片外缓存作为超额订购，如Cisco\cite{CiscoNcs5500}和Broadcom\cite{BCM88480}。对于异构缓存系统的无损缓存池，现行缓存管理机制H-SIH在净空缓存分配上仍然采用静态分配方式，在流量控制上通过结合全局流量控制避免片外带宽用尽而丢包。
 
-\footnote{这是脚注1}根据 zzz 发布的报告 \footfullcite{王磊2011电气自动化控制设备可靠性探究}，可以发现\footnote{这是脚注2}
+\xsubsection{缓存分配}{Buffer Allocation}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{Figures/buffer_partition_hsih.pdf}
+  \caption{H-SIH缓存分区}
+  \label{c4:s1:ss1:fig:hsih buffer partition}
+\end{figure}
+
+H-SIH在逻辑上将无损缓存池划分为私有缓存、共享缓存和净空缓存。其中私有缓存和净空缓存位于片上缓存，共享缓存同时存在于片上缓存和片外缓存。H-SIH对片上缓存和片外缓存的逻辑分区如图\ref{c4:s1:ss1:fig:hsih buffer partition}所示，异构缓存系统中私有缓存分配方式和片上缓存系统相同，以静态方式在片上缓存预留。净空缓存不以队列为单位预留，而是在片上预留全局净空缓存池。H-SIH中共享缓存分为两部分：片上缓存除私有缓存和净空缓存以外的剩余空间和整个片外缓存空间，片外共享缓存空间仅在拥塞队列之间共享。
+
+对于不同缓存分区的管理，异构缓存系统与片上缓存系统类似。私有缓存空间优先占用，为每个队列分配几个报文的空间，如3KB；净空缓存空间在触发PFC暂停后开始占用，为每个队列分配最坏情况下的需求量，即公式(\ref{eqn:c2:headroom calculation})中的$\eta$大小。共享缓存空间在所有队列之间动态共享，H-SIH在缓存分配上以片上缓存为中心，空队列或者轻微拥塞队列优先占用片上共享缓存，拥塞队列占用片外共享缓存。具体地，每个队列可用的片上共享缓存空间通过动态阈值限制，达到阈值限制后判定为拥塞队列开始占用片外缓存空间，动态阈值由公式(\ref{eqn:c4:dt threshold in hybrid buffer system})计算得到：
+\begin{equation}
+  T(t)=\alpha \cdot (B_{os} - \sum_{i} \sum_{j} \omega_{os}^{i,j}(t))
+  \label{eqn:c4:dt threshold in hybrid buffer system}
+\end{equation}
+
+\noindent 其中，$B_{os}$表示片上共享缓存分区大小，$\omega_{os}^{i,j}(t)$表示$t$时刻端口$i$中队列$j$占用片上共享缓存的总量
+
+\xsubsection{流量控制}{Flow Control}
+H-SIH的流量控制机制与标准PFC类似，仅触发条件存在差别。在片外缓存容量或带宽不足时引入全局流量控制，全局流量控制即触发片外缓存中所有队列的PFC控制帧，不需要引入额外机制，具体地，全局流量控制触发条件为满足以下状态之一：
+\begin{equation}
+  \begin{cases}
+    \sum_{i} \sum_{j} q^{i,j}_{off}(t) \geqslant B_{off} \\
+    Bw_{used} \geqslant \beta \cdot Bw_{off} \\
+  \end{cases}
+  \label{eqn:c4:global pause invoke condition}
+\end{equation}
+
+\noindent 其中$q^{i,j}_{off}(t)$表示$t$时刻端口$i$中队列$j$在片外缓存的队列长度，$B_{off}$和$Bw_{off}$分别表示片外缓存容量和带宽大小，$Bw_{used}$为当前片外带宽占用，$\beta$为片外带宽占用阈值参数。
+
+在触发PFC恢复时，H-SIH不采用全局策略，而是独立地控制每个队列的恢复状态转换，队列PFC恢复阈值$X_{on}(t)$设置为：
+\begin{equation}
+  X_{on}(t) = T(t) - \delta
+  \label{eqn:c4:pfc resume threshold}
+\end{equation}
+
+\noindent 与标准PFC不同的是，$X_{on}(t)$限制的是片上共享缓存和片外缓存队列长度之和，即满足如下条件：
+\begin{equation}
+  \omega_{s}^{i,j}(t) \leqslant X_{on}(t)
+  \label{eqn:c4:resume condition}
+\end{equation}
+
+
+综上所述，H-SIH的流量控制机制可以由图\ref{c4:s1:ss1:fig:hsih state transition}中的状态机来描述，除触发条件外与\ref{c3:s1:ss2:flow control}节阐述的PFC机制类似，本节不再展开赘述。
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{state_transition_hsih.pdf}
+      \subcaption{入口队列}
+      \label{c3:s3:ss4:fig:sub1:hsih ingress queue state transition}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{state_transition_pfc_out.pdf}
+      \subcaption{出口队列}
+      \label{c3:s3:ss4:fig:sub2:hsih egress queue state transition}
+  \end{subfigure}
+  \caption{H-SIH流量控制状态机}
+  \label{c4:s1:ss1:fig:hsih state transition}
+\end{figure}
+
+\xsubsection{MMU处理流程}{MMU Workflow}
+
+H-SIH的处理逻辑在MMU中实现，主要逻辑包括缓存使用情况监测、报文准入决策和流量控制触发。MMU实时记录各个缓存分区的占用，报文到达时根据缓存使用情况对该报文进行决策，MMU在每个报文入队前和出队后检查PFC状态转换。具体地，MMU在报文入队前按照以下流程进行决策：
+
+1）$q^{i,j}_{on}(t)<\phi$：MMU决策该报文进入私有缓存空间，即优先占用私有缓存。
+
+2）$q^{i,j}_{on}(t)< \phi+T(t)$：MMU决策该报文进入片上共享缓存空间。即当前队列处于非拥塞状态，占用片上共享缓存空间。
+
+3）$\sum_{i}\sum_{j}q^{i,j}_{off}(t) < B_{off} ~\bigwedge~ Bw_{used} < \beta \cdot Bw_{off}$：MMU决策该报文进入片外缓存空间。此时，片上缓存队列长度达到阈值，片外缓存可用带宽和容量足够，当前队列进入拥塞状态，开始占用片外共享缓存。
+
+4）$\sum_{i}\sum_{j}q^{i,j}_{off}(t) \geqslant B_{off} ~\bigvee~ Bw_{used} \geqslant \beta \cdot Bw_{off}$：MMU决策该报文进入片上净空缓存。此时，片外容量或带宽用尽，触发全局流量控制，全局流量控制即片外缓存所有队列均触发PFC控制帧。
+
+5）$q^{i,j}_{on}(t) < \phi +T(t)+\eta$：MMU决策报文进入片内净空缓存。当前队列触发PFC，片上净空缓存容纳控制帧生效之前到达的报文。
+
+6）$q^{i,j}_{on}(t) \geqslant \phi +T(t)+\eta$：片上净空缓存溢出，MMU决策该报文丢弃。
+
+\noindent 其中$\phi$表示给每个队列预留的私有缓存大小，$q^{i,j}_{on}(t)$表示$t$时刻端口$i$中队列$j$在片上缓存的队列长度。
+
+在报文出队后，MMU需要检查每个队列，根据缓存占用情况触发PFC恢复。具体地，如果入口队列当前处于OFF状态且满足$\omega_{s}^{i,j}(t)<X_{on}(t)$时，MMU向上游设备发送一个恢复帧同时将入口队列转换为ON状态。
+
+\xsection{问题分析}{Problem Analysis}
+\label{c4:s2:problem analysis}
+
+本节指出异构缓存系统中现行缓存分配机制存在的突发吸纳受限于片外带宽、流量控制损害线速吞吐和长距离传输存在丢包问题。结合片上缓存和片外缓存各自的物理特性以及无损网络部署发展趋势分析了上述问题存在的来源以及寻求更高效缓存分配策略的必要性。
+
+\xsubsection{突发吸纳受限于片外带宽}{Burst Absorption is Limited by Off-chip Bandwidth}
+
+异构缓存系统包括片上缓存和片外缓存两部分缓存空间，异构性在于片上缓存和片外缓存的不同物理特性。如图\ref{c4:s1:ss1:fig:hybrid buffer system features}所示，片上缓存集成在芯片内部，距离处理器核心很近，可以通过高速的内部总线实现快速访问，因此片上缓存带宽可以满足线速转发的需求。但是受限于芯片面积和能耗，片上缓存的容量有限，通常只有几百KB到几十MB的大小。片外缓存在容量和带宽上与片上缓存彼此互补：一方面，片外缓存独立于处理芯片之外，可以通过DRAM实现GB级别的缓存容量；另一方面，片外缓存需要通过数据总线与处理芯片通信，访问速度相对较慢，即使利用HBM技术\cite{jedecHBM2E,kim2019design}进行部署，读写带宽通常也只能达到转发带宽的一半左右\cite{Ciscohybridbuffer,}。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{Figures/hybrid-buffer-system-features.pdf}
+  \caption{异构缓存系统特点}
+  \label{c4:s1:ss1:fig:hybrid buffer system features}
+\end{figure}
+
+H-SIH在缓存分配上以片上缓存为中心，只有在发生拥塞时才占用片外缓存空间。具体地，非拥塞或轻度拥塞队列占用片上缓存，拥塞队列占用片外缓存空间。H-SIH通过队列长度来识别拥塞队列，即队列长度大于动态阈值$T(t)$时识别为拥塞队列开始决策进入片外缓存。该机制在少量队列拥塞的情况下可以保证片外缓存吸纳队列积累，但是受限于片外缓存读写带宽，在带宽瓶颈时会由于片外写带宽不足导致突发吸纳能力受限。
+
+具体地，H-SIH在片外带宽瓶颈时触发全局流量控制避免丢包，全局流量控制对所有流量触发无差别PFC暂停，严重缩减了片外缓存的可用空间。为了定量说明H-SIH在片外带宽瓶颈时存在的片外缓存利用低效性，本节通过ns-3搭建星型拓扑网络，其中16台主机作为发送端，另外16台主机作为接收端，链路带宽和时延分别为100Gbps和1$us$。背景流基于web \ search\cite{SIGCOMM10DCTCP}模型随机产生，流开始时间服从泊松分布同时将链路负载控制到90\%；突发流形式为十六打一，突发大小以4MB递增，目的主机随机挑选，每经过1$ms$产生一次突发。片外缓存队列长度如图\ref{c4:s1:ss1:fig:dram qlen motivation}所示，在片外带宽瓶颈场景下，片外缓存中的突发吸纳量最高只能达到10MB左右，大小仅突发总量的四分之一。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.6\textwidth]{Figures/burst-absorption-motivation.pdf}
+  \caption{H-SIH片外缓存队列长度}
+  \label{c4:s1:ss1:fig:dram qlen motivation}
+\end{figure}
+
+片外缓存利用低效性的主要来源在于H-SIH在片外带宽瓶颈时的粗粒度流量控制。H-SIH在触发全局流量控制时无差别地对所有流量触发PFC暂停，无疑会损害此时处于活跃状态的正常流量和突发流量，进而限制了片外缓存本身具有的突发吸纳能力。
+
+
+\xsubsection{流量控制损害线速吞吐}{Throughput Damage from Flow Control}
+
+\begin{figure}[H]
+  \centering
+  \resizebox{0.6\linewidth}{!}{\input{Figures/victim-flow-scenario.tex}}
+  \caption{受害流场景}
+  \label{c4:s1:ss1:fig:victim flow scenario}
+\end{figure}
+
+触发PFC控制帧会产生连锁反应，瓶颈链路上发生的拥塞可能会导致其它转发路径上的流量性能受损。考虑图\ref{c4:s1:ss1:fig:victim flow scenario}中的受害流场景，20台主机通过两台路由器连接，所有的链路带宽为100Gbps，链路时延为$1us$，其中有两条长流$F_0$途径$H_0 \rightarrow R_0 \rightarrow R_1 \rightarrow H_{19}$转发，$F_1$途径$H_1 \rightarrow R_0 \rightarrow R_1 \rightarrow H_{18}$，$F_0$和$F_1$属于同一流量类别所以进入同一个队列。在稳态情况下，$F_0$和$F_1$应当公平共享链路$R_0-R_1$带宽。在$t=0$时刻，突发流量同时从$H_2-H_{17}$以线速100Gbps发往$R_1$经路由转发给$H_{18}$。所有突发流量达到$R_1$后，瓶颈链路在于$R_1-H_{18}$，流量会在$R_1$的缓存中不断积累，直至触发PFC。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/collateral-damage-wo-motivation.pdf}
+      \subcaption{流$F_0$的吞吐率（w/o CC}
+      \label{c3:s6:ss1:fig:sub1:f0 throughput w/o cc}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/collateral-damage-TcpNewReno-motivation.pdf}
+      \subcaption{流$F_0$的吞吐率（TCP New-Reno）}
+      \label{c3:s6:ss1:fig:sub1:throughput of f0 new reno}
+  \end{subfigure}
+  \caption{无辜流量吞吐受损}
+  \label{c3:s6:ss1:fig:throughput damage}
+\end{figure}
+
+本节通过在ns-3仿真平台模拟上述网络场景，在PFC和PFC+TcpNewReno拥塞管理机制下测试H-SIH的性能，$F_1$的吞吐率结果如图\ref{c3:s6:ss1:fig:throughput damage}所示。在突发流量到达之前，$F_0$的吞吐率稳定在50Gbps左右，突发流量达到触发PFC之后，$F_0$的吞吐率下降至接近0。$F_0$的转发路径不包括瓶颈链路$R_1-H_{18}$，但是其吞吐率仍然受其拥塞影响，$F_0$成为该场景下的受害流。由于突发流和背景流$F_1$的瓶颈链路位于$R_1-H_{18}$，发生拥塞后会触发其上行链路的PFC暂停，即$R_1$向其上行链路发送暂停帧，进而拥塞传播到$R_0$触发$R_0$向上游发送暂停帧。最终，PFC传播到发送端导致$F_0$和$F_1$暂停发送，$F_0$吞吐率受损。
+
+受害流性能受损来源于PFC暂停帧带来的连锁反应，在基于PFC的无损网络中无法完全消除，但是在高效的缓存管理机制下可以有效避免。能否有效避免受害流性能损害在于缓存管理机制是否可以在不触发PFC的前提下完全吸纳突发流量。
+
+
+\xsubsection{长距离传输存在丢包}{Packet Loss in Long-haul Transmission}
+
+随着数据中心网络支持业务应用的不断发展，跨数据中心流量不断增长并且提出了更高的网络服务质量要求\cite{zhao2023deterministic}。对于分布式应用，网络成为其提供高质量和高可靠性服务的关键性能瓶颈，如分布式存储中跨计算集群和存储集群之间的网络通信。
+
+RDMA通过将网络协议栈卸载到网卡降低CPU开销，可以在接近于0的CPU开销下实现高带宽和低时延网络传输。因此，RDMA技术在数据中心内部广泛部署。随着数据中心分布式应用相关技术的进一步发展，高带宽和超低时延的跨数据中心长距离传输成为其提升服务质量的关键。因此，跨数据中心传输对于RDMA技术的部署需求日益迫切。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\linewidth]{Figures/data_center_architecture.pdf}
+  \caption{数据中心网络典型拓扑结构}
+  \label{c4:s1:ss1:fig:data center typical topology}
+\end{figure}
+
+图\ref{c4:s1:ss1:fig:data center typical topology}中显示了数据中心网络的经典拓扑结构。所有服务器通过Clos架构连通，数据中心内部采用三级交换架构，数据中心之间通过路由器和长距离链路连接。取决于数据中心的地理位置，长距离链路的长度可以达到数十甚至数百千米，使其传播时延增长到毫秒级别\cite{bai2023empowering}。
+
+长距离传输对于缓存容量提出了更高的要求。最坏情况下的PFC净空缓存需求量计算如公式(\ref{eqn:c2:headroom calculation})所示，其大小与链路带宽和传播时延成正相关关系。长距离链路的传播时延给PFC净空缓存的预留带来了很大的挑战，长距离传输需要更大的净空缓存空间才能保证无丢包，如100Gbps带宽和$1ms$传播时延的长距离链路，H-SIH需要给每个队列预留的净空缓存量为$\eta=2(100\text{Gbps} \times 1ms + 1500\text{B})+\text{3840B}\approx 25\text{MB}$。因此，对于长距离传输中的PFC部署，纯片上缓存系统无法满足所有队列的净空缓存需求，需要异构缓存系统提供更大的缓存容量。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.62\linewidth]{Figures/long-haul-transmission-motivation.pdf}
+  \caption{长距离传输丢包问题}
+  \label{c4:s1:ss1:fig:long haul packet loss}
+\end{figure}
+
+
+片外缓存可以保证足量的净空缓存分配，但是片外净空缓存的占用仍然受限于片外带宽。H-SIH在片外带宽瓶颈时触发全局流控可以保证无丢包是基于净空缓存需求总量小于片上缓存容量的假设，然而，随着PFC控制帧传输距离增加，需要的净空缓存总量不断增加，片外缓存空间无法完全避免净空缓存溢出而丢包。本节通过ns-3模拟图\ref{c4:s1:ss1:fig:data center typical topology}中的跨数据中心长距离传输场景，其中四台主机通过一个路由器连接，所有链路带宽100Gbps，背景流基于web \ search\cite{SIGCOMM10DCTCP}模型随机产生，流开始时间服从泊松分布，将链路负载控制到0.9；突发流形式为三打一，突发大小为8MB，目的主机随机挑选，每经过1$ms$产生一次突发，链路时延在1$us$-2$ms$范围内递增，图\ref{c4:s1:ss1:fig:long haul packet loss}显示了H-SIH不同链路时延下的丢包结果，结果显示H-SIH在长距离传输场景下存在丢包，而且随着传输距离增加，丢包问题变得更加严重。
+
+H-SIH的在长距离传输场景中的丢包问题主要来源于净空缓存分配和片外带宽利用的不合理性。一方面，H-SIH在片内预留净空缓存，忽略了长距离传输场景下可能存在的净空缓存需求量大于片内缓存容量问题，在净空缓存分配时未能充分发挥片外缓存的容量优势；另一方面，H-SIH在片外带宽用尽时触发全局流量控制，触发全局流量控制会导致所有拥塞队列同时占用净空缓存，在净空缓存不足的情况下，丢包问题将进一步加剧。
+
+
+\xsection{H-DSH机制设计}{H-DSH Design}
+\label{c4:s3:hdsh design}
+
+针对H-SIH存在的问题，本文提出了一种面向异构缓存系统的动态共享净空缓存分配机制H-DSH，H-DSH以片外缓存为中心，将片外缓存作为共享缓存空间进行动态分配，在进行净空缓存分配时优先利用片外缓存空间，以充分发挥片外缓存的容量优势。同时通过概率模型主动限制部分拥塞流量对片外缓存的占用，有效降低片外带宽瓶颈出现的概率。本节主要阐述H-DSH的设计目标、基本设计思想、面临的主要挑战以及具体设计细节。
+
+\xsubsection{设计目标}{Design Goals}
+
+考虑到异构缓存系统不同架构、片上和片外缓存不同物理特性以及部署环境流量和时延复杂性等因素，异构缓存系统需要设计一个更加灵活且高效的缓存管理策略，新的缓存管理策略需要同时满足以下特性：
+
+\subsubsection{避免丢包导致性能受损}
+
+丢包带来的重传会导致RDMA性能受损，避免丢包同样是异构缓存系统净空缓存管理策略的首要目标。在缓存容量和读写带宽充足的情况下，新策略的目标在于分配足够的净空缓存以保证无损传输；在缓存容量或带宽受限的情况下，新策略的目标在于尽量减少丢包数量以降低网络性能损害。
+
+\subsubsection{提供更高突发吸纳能力}
+
+相较于数据中心内部网络环境，跨数据中心长距离传输场景中的流量表现出更强的突发性和不可预测性。为了确保突发流量的传输性能，异构缓存系统需要具备足够的容量和处理能力，有效降低突发流量对网络传输性能的影响。因此，新的净空缓存管理策略需要基于异构缓存系统为长距离传输场景提供足够的突发吸纳能力。
+
+\subsubsection{避免PFC损害线速吞吐}
+
+PFC存在的头阻问题可能导致无辜流的暂停发送，进而导致正常流量吞吐率减小、时延增加和不公平性等一系列性能问题。线速吞吐是网络性能的重要指标之一，高性能网络传输需要无损缓存系统提供线速吞吐能力。新的净空缓存管理策略需要在利用PFC避免丢包的基础上避免PFC对线速吞吐造成传输性能损害。
+
+\subsubsection{发挥片外缓存的容量优势}
+
+相较于片上缓存，片外缓存具有明显的容量优势。考虑到片外缓存带宽敏感，片外缓存更适合存储大容量需求且小带宽需求型流量。在带宽受限的条件下充分利用片外缓存容量是进一步提高异构缓存系统缓存管理效率的关键。因此，新策略需要实现片外缓存的高效利用。
+
+\subsubsection{提供长距离传输的扩展性}
+
+随着长距离传输网络服务质量需求的不断提高，进一步将RDMA扩展至跨数据中心范围成为新的发展趋势。由于长距离链路带来更大的传播时延，支持PFC需要更多的净空缓存空间。单纯利用片上缓存无法满足长距离传输的需求。新的净空缓存管理策略需要具备一定的传输距离扩展性，以应对RDMA扩展需求。
+
+
+\xsubsection{基本思想}{Key Ideas}
+\label{c4:s3:ss2:key ideas}
+
+为实现上述目标，H-DSH在设计上主要遵循以下基本思想，通过高效的净空缓存分配方式充分发挥异构缓存的利用效率，同时结合流量识别机制和主动片外带宽调节机制提升无损传输性能：
+
+\subsubsection{H-DSH以动态共享方式统一管理片上缓存和片外缓存}
+
+对于带宽敏感的片外缓存而言，静态预留缓存空间意味着片外读写带宽的预留，所以片外缓存空间不适合进行静态分配。与传统缓存分区相统一，H-DSH将片外缓存作为共享缓存扩展空间，以动态方式分配共享缓存，同时将片外缓存的共享范围扩展到所有队列。在读写需求不超过片外提供带宽的情况下，H-DSH对于片外共享缓存空间的分配方式与片内共享缓存空间一致。另外，H-DSH通过动态共享的方式分配净空缓存空间，减少整个缓存系统的静态空间，利用统计复用的思想提高缓存利用率。
+
+\subsubsection{H-DSH进一步结合流量特征信息进行缓存位置决策}
+
+H-DSH在设计上充分考虑到片上缓存和片外缓存在容量和带宽上的差异。在缓存的定位上，片上缓存适用于存储带宽敏感容量不敏感型流量，片外缓存则适合存储容量敏感带宽不敏感型流量。具体地，片内缓存应该存储能够及时排出的流量，该类流量不会造成过长的队列积累，同时单位时间带宽需求\footnote{便于说明，此处定义流量的单位时间带宽需求为该流量在缓存中的读写数据量与持续时间的比值，用于表示流量的带宽敏感程度。}更大；相对地，片外缓存应该存储在缓存中停留时间长的流量。H-DSH在队列长度的基础上进一步提取流量特征信息为缓存位置决策提供指导。
+
+\subsubsection{H-DSH通过提前触发PFC避免出现片外带宽瓶颈}
+
+当片外带宽瓶颈出现时，片外缓存空间的进一步利用会受其限制，因此，提高片外缓存利用率的关键在于有效解决片外带宽瓶颈问题。当片外带宽资源紧张时，缓存管理机制可以通过触发PFC来缓解片外带宽压力，但是PFC生效需要一定的时间延迟，导致该处理措施具有一定的滞后性。为了克服PFC的滞后性，H-DSH通过在片外缓存中挑选部分拥塞队列，在片外带宽用尽之前提前触发其PFC暂停，降低片外带宽瓶颈发生的概率。
+
+\subsubsection{H-DSH优先利用片外缓存空间分配共享净空缓存}
+
+考虑到长距离传输不断增加的净空缓存容量需求与现实片上缓存容量受限之间的矛盾，通过静态预留净空缓存的方式完全避免丢包已经不再现实。H-DSH将净空缓存空间进一步划分为静态净空缓存和共享净空缓存，共享净空缓存优先从片外缓存分配；在片上缓存容量足够时，在片上为每个端口预留$\eta$大小的净空缓存，片上缓存容量不足时则尝试从共享缓存空间分配。
+
+\xsubsection{主要挑战}{Main Challenges}
+
+相对于在数据中心网络内部部署的片上缓存系统，异构缓存系统本身以及部署环境存在更加显著的异构性。一方面，异构缓存系统本身固有片上缓存和片外缓存异构性，缓存管理策略需要将片外带宽作为核心资源进行管理；另一方面，在异构缓存系统的部署场景中，长距离链路会带来明显的时延异构性，时延增加同时带来更多的净空缓存需求。这些对于缓存管理策略的设计提出了全新的挑战，异构缓存系统缓存管理策略的设计主要面临以下挑战：
+
+\subsubsection{如何利用有限信息识别流量敏感性特征}
+%有限可用资源下的流量敏感特征识别
+
+网络流量具有很强的实时变化性和不可预测性，缓存管理策略无法实现准确的流量识别和实时的流量预测。有效的流量特征识别可以显著提高缓存管理的效率，如何利用有限的可用资源（包括硬件资源和流量信息等）实现更高准确度的流量识别是H-DSH实现高效性的重要挑战。根据\ref{c4:s3:ss2:key ideas}提出的基本思想，H-DSH至少需要实现队列级别的流量容量以及带宽敏感性特征识别。因此，H-DSH需要在有限的可用资源下实现对流量敏感性特征的迅速且准确识别，通过片上缓存和片外缓存队列长度等状态变化和特征提取有效信息。
+
+\subsubsection{如何实现适度且有效的受害流量挑选}
+%适度且有效的受害流量挑选
+
+H-DSH通过提前触发部分拥塞流量的PFC缓解片外带宽压力，在进行受害流量挑选时需要适度且有效。一方面，过度挑选受害流量会损害其传输性能，同时影响片外带宽的利用效率，进而降低片外缓存的使用效率；另一方面，受害流量挑选不足或不合理则无法有效减小片外缓存读写带宽需求，在片外带宽用尽时可能导致严重的性能下降。另外，被挑选流量的队列状态对于传输性能也会产生影响，如暂停短队列可能导致其中流量吞吐率受损。因此，H-DSH需要权衡以上各点实现适度且高效的受害流量挑选策略。
+
+\subsubsection{如何在净空缓存预留不足时避免丢包}
+
+PFC的净空缓存需求量与链路时延正相关，在长距离传输环境中支持PFC需要预留更多的净空缓存空间，容量敏感的片上缓存空间无法满足不断增长的净空缓存需求。因此，如何在净空缓存预留不足的情况下避免丢包成为异构缓存系统缓存管理策略面临的新挑战。在片上缓存系统中，无损传输和长距离传输具有明显的互斥关系，异构缓存系统可以解决长距离传输的高净空缓存容量需求，但是片外缓存的带宽限制会带来丢包风险，即片外的净空缓存空间可能因片外带宽不足而无法使用，从而导致丢包。因此，H-DSH在设计上需要进一步考虑净空缓存需求超出片上缓存容量的场景，通过高效的缓存分配与管理机制进一步扩展传输距离。
+
+
+\xsubsection{具体机制}{Design Details}
+
+本节描述H-DSH相关机制的具体设计和实现思路。包括H-DSH的缓存分区结构、缓存分配与管理、流量控制、流量敏感性识别以及MMU处理流程。
+
+\subsubsection{缓存分区结构}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\linewidth]{Figures/buffer_partition_hdsh.pdf}
+  \caption{H-DSH缓存分区}
+  \label{c4:s1:ss1:fig:hdsh buffer partition}
+\end{figure}
+
+% \todo{缓存分区图过大}
+
+H-DSH的缓存分区结构如图\ref{c4:s1:ss1:fig:hdsh buffer partition}所示，整体上与传统缓存分区相统一。片上缓存分区结构与H-SIH基本一致，划分为私有缓存、共享缓存和保底净空缓存池三部分。区别在于片外缓存全部划分为共享缓存，作为片上共享缓存分区在片外的扩展空间，在所有队列之间共享，保底净空缓存池为所有端口全局预留。
+
+H-DSH将片外缓存作为共享缓存的扩展空间，且分配方式与片上共享缓存保持一致。这样设计主要有两方面原因：一方面，H-DSH旨在将所有的静态缓存空间预留在片上，由于片外缓存带宽受限，在片外静态预留缓存空间无法保证其可用性；另一方面，将片外缓存作为共享缓存分区的一部分可以降低缓存管理策略的复杂性，不考虑片外带宽瓶颈的情况下，片外共享缓存的分配与管理与片上共享缓存并无差异。
+
+% \todo{保底净空缓存池}
+
+\subsubsection{缓存分配}
+
+与片上缓存系统类似，H-DSH仍然在片上为每个队列静态预留少量私有缓存空间，同时在可用的片上缓存容量内尝试为每个端口静态预留$\eta$大小的净空缓存作为全局净空缓存池，全局净空缓存池用于吸收触发端口级别流量控制后到达的流量。值得注意的是，对于逐端口净空缓存需求总量超出片上缓存容量的情况，H-DSH仅在片上预留适量静态净空缓存池并使其在所有端口之间共享。
+
+对于共享缓存空间，H-DSH根据需要为每个队列动态分配。共享缓存空间包括片上共享缓存和片外共享缓存两部分，考虑到片上缓存和片外缓存的不同物理特性，H-DSH使用不同的策略限制每个队列在其中的可用空间。
+
+对于容量敏感的片上共享缓存，H-DSH使用动态阈值$T(t)$限制其占用，$T(t)$计算方式与H-SIH相同，即公式(\ref{eqn:c4:dt threshold in hybrid buffer system})。区别在于H-DSH利用该阈值限制片上和片外共享缓存队列长度之和，如下式(\ref{eqn:c4:dt threshold limit})所示：
+\begin{equation}
+  \sum_{i} \sum_{j} \omega_{s}^{i,j}(t) < T(t)
+  \label{eqn:c4:dt threshold limit}
+\end{equation}
+
+\noindent{其中，$ω_s^{i,j}(t)$为端口$i$队列$j$的片上共享缓存和片外共享缓存占用的总和，其中蕴含的原理为H-DSH利用片内和片外队列总长度识别拥塞队列，在队列拥塞时限制占用片上缓存空间。}
+
+对于容量不敏感的片外共享缓存，在片外带宽压力较小时，H-DSH仅通过静态阈值限制其占用，静态阈值的设置可避免队列长度过长即可，如16MB；在片外带宽压力增加到一定程度时，H-DSH开始在片外挑选受害队列，通过提前触发其PFC缓解带宽压力，每个队列以一定概率触发PFC。为了在规避片外带宽瓶颈的同时避免引入性能损害，H-DSH进一步结合队列长度和片外带宽使用情况计算每个队列的PFC触发概率，具体地，片外带宽使用程度超过一定阈值后（如60\%），队列触发PFC的概率正比于队列长度和片外带宽使用率。
+
+片上预留的保底净空缓存空间只有在触发端口级别流控时才开始占用。对于队列级别流控，H-DSH在其触发时动态地为队列分配共享净空缓存空间。共享净空缓存的分配和管理方式与普通共享缓存相同，仅存在用途上的差别。
+
+\subsubsection{流量控制}
+
+与\ref{c3:s3:ss4:dsh mechanisms}节中的流量控制描述类似，H-DSH同样通过结合队列级别流量控制和端口级别流量控制减少净空缓存预留量。相对于片上缓存系统，异构缓存系统中缓存占用情况更复杂，因而H-DSH中流量控制的阈值设置复杂度更高。
+
+对于队列级别流量控制，其状态转换过程与PFC机制类似，差别在于暂停和恢复阈值的设置。H-DSH中触发队列级别暂停的条件包括缓存容量受限和缓存带宽受限两种情况：缓存容量受限即共享缓存占用达到阈值限制（包括片上和片外缓存），此时队列拥塞程度较大，通过触发PFC限制其队列长度；缓存带宽受限即片外带宽占用超过阈值，此时片外带宽压力较大，通过提前触发部分队列的PFC避免片外带宽用尽。队列级别恢复的要求即尽量不影响该队列的吞吐率，与片上缓存系统相统一，H-DSH将$X_{qon}$阈值设置为：
+\begin{equation}
+  X_{qon}(t) = T(t) - \delta_q
+  \label{eqn:c4:qon threshold}
+\end{equation}
+
+\noindent{其中$T(t)$即片上共享缓存的动态阈值，需要注意的是，该阈值限制的是共享缓存空间占用，即片上和片外共享缓存之和低于该阈值时触发PFC恢复，其中蕴含的原理包含两方面：一方面，将$T(t)$作为队列流控恢复阈值可以保证发送恢复帧时有足够的队列长度，从而可以保证恢复帧生效时延内的吞吐率；另一方面，通过共享缓存总占用量与恢复阈值比较可以防止PFC恢复时片外队列较长，避免过早PFC恢复导致拥塞加重。}
+
+理想情况下，端口级别流量控制应该作为队列级别流控的备选措施。在片外带宽压力较小时，片外缓存足够支持队列级别流量控制净空缓存占用，此时无需触发端口级别流量控制；在片外带宽压力较大且端口拥塞程度较高时需要触发端口级别暂停。具体地，H-DSH在挑选受害流量触发其队列级别流量控制时，进一步检查该队列所在端口的拥塞程度，如果端口内拥塞程度较高则触发端口级别暂停。因此，H-DSH将端口暂停阈值$X_{poff}$设置为：
+\begin{equation}
+  X_{poff}(t) = N_q \times T(t)
+  \label{eqn:c4:poff threshold}
+\end{equation}
+
+\noindent 其中$N_q$为端口中的队列数，与公式(\ref{eqn:c4:qon threshold})中$X_{qon}$阈值不同，该阈值限制的是该端口中所有队列的片上共享缓存空间占用，即在该端口中所有队列片上共享缓存占用总和超过阈值$X_{poff}$时触发整个端口的暂停帧。与端口级别暂停阈值的设置方式同理，端口级别恢复阈值设置为：
+\begin{equation}
+  X_{pon}(t) = X_{poff}(t) - \delta_p
+  \label{eqn:c4:pon threshold}
+\end{equation}
+
+
+\subsubsection{流量敏感性识别}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\linewidth]{Figures/state_transition_flow.pdf}
+  \caption{流量敏感性识别状态机}
+  \label{c4:s1:ss1:fig:flow state transition}
+\end{figure}
+
+为了充分发挥片上和片外缓存各自的物理特性优势，H-DSH根据流量特征基于报文进行分类。对应于片上和片外缓存定位，H-DSH将报文划分为带宽敏感型和容量敏感型。带宽敏感型报文对于缓存容量需求较小，但在短时间内的带宽需求较大，该类型报文适合在片上缓存存储，具体包括队首、短队列和微突发中能够及时转发的报文，以及所在队列快速排空的报文；容量敏感型报文单位时间带宽需求较小，但缓存积累量较大，以此更适合在片外缓存存储，具体包括净空缓存、队尾以及被暂停队列中缓存停留时间长的报文。基于以上认识，H-DSH针对异构缓存系统提出一个流量敏感性识别机制，该机制可由图\ref{c4:s1:ss1:fig:flow state transition}中的状态机描述。
+
+% \todo{状态机解释}
+
+\subsubsection{MMU处理流程}
+
+综合以上机制，H-DSH的具体工作流程如图\ref{c4:s3:ss4:fig:hdsh ingress flow control}的状态机所描述。在入口侧，每个入口队列存在两种状态：
+
+（1）QON：表示该入口队列处于非拥塞状态。在该状态下，上游端口允许向该队列发送对应类别的流量，此时收到的数据包将会被存放到私有缓存空间或者共享缓存空间中。
+
+（2）QOFF：表示该入口队列处于拥塞状态。在该状态下，上游端口对应类别的流量被暂停发送，收到的数据包将会被存放到共享缓存中，即共享净空缓存。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=7cm]{state_transition_pfc_in_queue_hdsh.pdf}
+      \subcaption{队列级别流量控制}
+      \label{c4:s3:ss4:fig:sub1h:dsh ingress queue state transition}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=7cm]{state_transition_pfc_in_port_hdsh.pdf}
+      \subcaption{端口级别流量控制}
+      \label{c4:s3:ss4:fig:sub2:hdsh ingress port state transition}
+  \end{subfigure}
+  \caption{H-DSH出口侧流量控制状态机}
+  \label{c4:s3:ss4:fig:hdsh ingress flow control}
+\end{figure}
+
+每个入端口同样存在两种端口级别的状态：
+
+\setcounter{paragraph}{0}
+（1）PON：表示该入端口处于非拥塞状态。在该状态下，上游端口允许向其发送任意类别的流量（对应类别没有被队列级别流量控制暂停），此时收到的数据包将会被存放到私有缓存或者共享缓存分区中。
+
+（2）POFF：表示该入端口处于拥塞状态。在该状态下，上游端口所有类别的流量均被暂停发送，此时收到的数据包将会被存放到保险净空缓存中。
+
+出口侧的具体工作流程同图\ref{c3:s3:ss4:fig:dsh egress flow control}，状态转换过程完全相同，此处不再展开赘述。
+
+具体地，初始队列长度为0时，入口队列处于QON状态。后续报文到达时可能存在三种状态：\ding{172}PON$+$QON，\ding{173}PON$+$QOFF，\ding{174}POFF。根据所处状态和缓存占用情况进行对应处理，MMU按照顺序进行判断，只有在前面条件均不满足的情况下才会进行后续判断。对于状态\ding{172}，此时所在队列和端口均处于ON状态，端口和队列级别暂停均未触发：
+
+\setcounter{paragraph}{0}
+
+（1）$q^{i,j}_{on}(t)<\phi$：MMU决策该报文进入私有缓存空间，即片上队列长度小于私有缓存大小，优先占用私有缓存空间。
+
+（2）$q^{i,j}(t)< \phi+T(t)$：MMU决策该报文进入片上共享缓存空间。即当前队列共享缓存占用不超过片上共享缓存动态阈值，占用片上共享缓存空间。
+
+（3）$bw_{used} \geqslant \beta \cdot bw ~\bigvee ~q_{off}(t) \geqslant B_{off}$：MMU决策该报文进入片内净空缓存空间。此时片外带宽或容量用尽，触发端口级别暂停以避免丢包。
+
+（4）$bw_{used} \geqslant \beta_{c} \cdot bw$：MMU决策该报文进入片外共享缓存空间，同时通过概率触发其队列级别暂停，若触发队列级别暂停则进一步判断是否触发端口级别暂停，即公式(\ref{eqn:c4:poff threshold})。其中$\beta_c \cdot bw$为片外带宽过载阈值。
+
+（5）$q^{i,j}_{off}(t) < T_{off}$：MMU决策该报文进入片外共享缓存空间。即片外共享缓存占用未达到阈值限制，占用片外共享缓存空间。
+
+对于状态\ding{173}，此时端口处于PON状态，队列处于QOFF状态，队列级别暂停触发：
+
+\setcounter{paragraph}{0}
+
+（1）$bw_{used} < \beta \cdot bw ~\bigwedge ~q_{off}(t) \geqslant B_{off}$：MMU决策该报文进入片外共享缓存空间。即片外共享缓存空间可用，优先在片外分配共享净空缓存。
+
+（2）$q_{on}^{i,j}(t)< \phi+T(t)$：MMU决策该报文进入片上共享缓存空间。此时片上共享缓存存在可用空间，则在片上分配共享净空缓存。
+
+（3）$q_{on}^{i,j}(t) \geqslant \phi+T(t)$：MMU决策该报文进入片上净空缓存空间，同时触发端口级别暂停。
+
+对于状态\ding{174}，此时端口处于POFF状态，端口级别暂停触发：
+
+\setcounter{paragraph}{0}
+
+（1）$q_{h}(t) \leqslant H$：MMU决策该报文进入片上净空缓存空间，其中$q_{h}(t)$为所有端口的净空缓存占用总量，$H$为净空缓存池大小。
+
+（2）$q_{h}(t) > H$：MMU决策将该报文丢弃。即净空缓存溢出，报文丢弃。
+
+
+\xsection{H-DSH具体实现}{H-DSH Implementation}
+\label{c4:s4:hdsh implementation}
+
+本节讨论H-DSH的硬件资源和软件算法上的易实现性。相较于H-SIH，H-DSH增加的硬件资源开销可以接受，H-DSH的算法实现大多为简单比较逻辑，在软件上易于实现。
+
+
+\xsubsection{流量控制实现}{Implementation of Flow Control}
+
+关于队列级别流量控制和端口级别流量控制以及二者的整合具体实现，\ref{c3:s5:dsh implementation}节已经详细描述，本节不再展开赘述。其中，队列级别流控仅修改控制帧触发状态即可，端口级别流控需要引入一个乘法器和一个减法器用于阈值计算，整合二者需要在出口为每个队列和端口维护一个状态，每个队列的暂停状态通过一个与或门即可获得。
+
+
+\xsubsection{额外资源开销}{Additional Resource Overhead}
+
+相较于H-SIH，H-DSH引入的额外资源开销在可接受范围内。H-DSH引入的额外资源开销包括运算器、寄存器和内存。其中，运算器开销来源于流量控制和缓存决策时的阈值比较，H-DSH仅引入少量比较和简单运算操作；寄存器开销在于实时统计片外带宽使用情况，需要增加一个寄存器存储当前的带宽占用，为了避免引入计时器，H-DSH每存储一定数量报文后重新计算其大小；内存开销主要在于维护每个队列在片外缓存的长度，额外内存开销不超过2MB。另外，对于H-DSH中概率触发队列暂停的实现，不需要引入硬件随机数生成器，而是通过软件算法生成随机数。综上，H-DSH在仅引入少量额外资源开销，在硬件上具有可实现性。
+
+\begin{algorithm}[H]
+  \small
+  \SetAlCapFnt{\small}
+  \SetAlCapNameFnt{\small}
+  \Input{待处理报文$packet$}
+  \Output{存储位置决策$decision$}
+
+  \SetAlgoVlined
+  \newcommand{\algorithmicgoto}{\textbf{go to}}
+  \newcommand{\Goto}[1]{\algorithmicgoto~\ref{#1}}
+
+  获取报文大小$pkt\_size$，入端口$pid$，队列$qid$\;
+  \uIf{$port\_status[pid]=OFF$}{\label{poff}
+    \uIf{$headroom\_left \geqslant pkt\_size$}{
+      $decision \leftarrow TO\_HEADROOM$\;
+    }
+    \Else{
+      $decision \leftarrow DROP$\;
+    }
+  }
+  \uElseIf{$queue\_status[pid][qid]=OFF$}{\label{qoff}
+    \uIf{$dram\_left \geqslant pkt\_size \And bw\_used < bw$}{
+      $decision \leftarrow TO\_OFF\_SHARED$\;
+    }
+    \uElseIf{$pkt\_size + sram\_qlen[pid][qid] <= \varphi + T(t)$}{
+      $decision \leftarrow TO\_ON\_SHARED$\;
+    }
+    \Else{
+      $port\_status[pid] \leftarrow OFF$\;
+      \Goto{poff};
+    }
+  }
+  \uElseIf{$pkt\_size+sram\_qlen[pid][qid]<\varphi$}{
+    $decision \leftarrow TO\_RESERVED$\;
+  }
+  \uElseIf{$pkt\_size+shared\_bytes[pid][qid]<T(t)$}{
+    $decision \leftarrow TO\_ON\_SHARED$\;
+  }
+  \uElseIf{$dram\_left < pkt\_size \Or bw\_used \geqslant bw \Or dram\_qlen[pid][qid] \geqslant T_d$}{
+    $queue\_status[pid][qid] \leftarrow OFF$\;
+    \Goto{qoff}\;
+  }
+  \uElseIf{$bw\_used \geqslant cg\_bw \And \textnormal{CheckSelectedPause}(pid, qid)$}{
+    \uIf{$sram\_port\_shared[pid] < N_q \times T(t)$}{
+      $queue\_status[pid][qid] \leftarrow OFF$\;
+      \Goto{qoff}\;
+    }
+    \Else{
+      $port\_status[pid] \leftarrow OFF$\;
+      \Goto{poff}\;      
+    }
+  }
+  \Else{
+    $decision \leftarrow TO\_OFF\_SHARED$\;
+  }
+  \Return $decision$\;
+  \caption{MMU入队模块决策算法}
+  \label{alg:c4:s4:ss3:enqueue module algorithm}
+\end{algorithm}
+
+
+\xsubsection{详细算法实现}{H-DSH Algorithm}
+
+H-DSH在算法实现上可以划分为两个模块：入队模块和出队模块。入队模块负责报文入队之前的决策以及流量控制Pause触发，出队模块负责报文出队后的缓存释放以及流量控制Resume触发。
+
+\subsubsection{入队模块}
+入队模块算法在报文入队前触发，主要处理过程包括报文缓存决策和流量控制触发。算法\ref{alg:c4:s4:ss3:enqueue module algorithm}描述了H-DSH入队模块决策算法的伪代码。对于每个新到达报文首先获取其大小、入端口和入口队列（第1行），然后判断当前端口是否处于暂停状态，如果处于暂停状态且净空缓存空间足够则进入全局的静态净空缓存池中（第3-4行），净空缓存溢出则丢弃当前报文（第6行）。净空缓存不是按照最坏情况给每个端口预留，而是预留一个全局的净空缓存池，所有端口共享其空间，在预留总量少于所有端口净空缓存需求量总和时可能由于净空缓存溢出而丢包。如果当前端口不处于暂停状态则进一步查看入口队列是否处于暂停状态，在入口队列暂停状态下，MMU需要为该队列分配共享净空缓存，在片外容量和带宽足够时首先尝试在片外分配（第8-9行），片外无法分配则从该队列的片内共享缓存空间分配（第10-11行），片内和片外均无法完成分配时触发端口级别暂停，存储位置在转入端口暂停状态后进一步决策（第13-14行）。在端口和队列都处于非暂停状态时，首先查看私有缓存空间是否可用，可用则优先占用私有缓存（第16行）。不可用则检查片上共享缓存空间，可用则优先占用片内共享缓存空间（第18行），不可用则进一步决策片外共享缓存空间，在片外容量或带宽可用时必然触发队列级别暂停（第20行），在片外带宽压力较大时概率触发队列级别暂停（第24行），同时判断当前端口的片上共享缓存占用，超过阈值则进一步触发端口级别暂停（第27行），触发流量控制之后的缓存位置由对应状态处理逻辑进行决策（第21，25，28行）。片外容量和带宽均不受限的情况下决策进入片外共享缓存空间（第30行）。
+
+\subsubsection{出队模块}
+出队模块算法在报文发送出队之后触发，出队模块根据缓存占用情况决定出队报文缓存分区，更新对应计数器释放缓存空间，同时检测是否需要触发流量控制恢复。算法\ref{alg:c4:s4:ss4:dequeue module algorithm}描述了H-DSH出队模块处理算法的伪代码。对于每个出队报文首先获取其大小、入端口、入口队列和存储位置（第1行），其中存储位置$location$表示报文存储在片上缓存还是片外缓存。对于片外缓存，其与片上缓存物理隔离，报文出队时更新片外相关计数器（第3-4行）；对于片上缓存，MMU维护每个缓存分区的缓存占用的计数器，并不记录每个报文所在的缓存分区，出队模块进行的缓存释放操作为逻辑上的缓存释放，即更新对应分区的计数器。出队时缓存分区释放的顺序依次为：净空缓存$\rightarrow$共享缓存$\rightarrow$私有缓存，出队模块依次计算上述三个分区的出队字节数并更新对应的计数器（第7-8行，第10-12行，第14-16行）。报文出队后会导致队列长度减小或者暂停阈值增加，此时进行端口级别和队列级别的恢复检测。出队模块首先对每个处于暂停状态的端口进行检查，如果净空缓存排空且端口共享缓存占用低于$X_{pon}$阈值则向上游设备发送$pid$对应端口的恢复帧同时恢复PON状态（第19-21行）；之后进一步检查每个PON状态端口中的QOFF状态队列，如果共享缓存占用低于$X_{qon}$阈值则向上游设备发送$qid$对应队列的恢复帧。
+
+
+\begin{algorithm}[H]
+  \small
+  \SetAlCapFnt{\small}
+  \SetAlCapNameFnt{\small}
+  \Input{待处理报文$packet$}
+
+  \SetAlgoVlined
+
+  获取报文大小$pkt\_size$，入端口$pid$，队列$qid$和存储位置$location$\;
+  \If{$location=OFF\_CHIP\_BUFFER$}{
+    $dram\_qlen[pid][qid] \leftarrow dram\_qlen[pid][qid] - pkt\_size$\;
+    $shared\_bytes[pid][qid] \leftarrow shared\_bytes[pid][qid] - pkt\_size$\;
+  }
+  \Else{
+    \Comment{更新净空缓存占用计数器}
+    $from\_headroom \leftarrow \min(headroom\_bytes[pid], pkt\_size)$\;
+    $headroom\_bytes[pid] \leftarrow headroom\_bytes[pid] - from\_headroom$\;
+
+    \Comment{更新共享缓存占用计数器}
+    $from\_shared \leftarrow \min(sram\_shared[pid][qid], pkt\_size-from\_headroom)$\;
+    $sram\_shared[pid][qid] \leftarrow sram\_shared[pid][qid] - from\_shared$\;
+    $shared\_bytes[pid][qid] \leftarrow shared\_bytes[pid][qid] - from\_shared$\;
+
+    \Comment{更新私有缓存占用计数器}
+    $left\_bytes \leftarrow pkt\_size-from\_headroom-from\_reserved$\;
+    $from\_reserved \leftarrow \min(reserved\_bytes[pid][qid], left\_bytes)$\;
+    $reserved\_bytes[pid][qid] \leftarrow reserved\_bytes[pid][qid] - from\_reserved$\;
+  }
+
+  \Comment{检查端口级别流控恢复}
+  \ForAll{$port\_status[p]=OFF$}{
+    \If{$headroom\_bytes[q] \leqslant 0 \And sram\_shared[p] < N_q \times T(t) - \delta_p$}{
+      $port\_status[p] \leftarrow ON$\;
+      向上游设备发送端口$p$的恢复帧\;
+    }
+  }
+  \Comment{检查队列级别流控恢复}
+  \ForAll{$port\_status[p]=ON \And queue\_status[p][q]=OFF$}{
+    \If{$shared\_bytes[p][q]<T(t)-\delta_q$}{
+      $queue\_status[p][q] \leftarrow ON$\;
+      向上游设备发送端口$p$队列$q$的恢复帧\;
+    }
+  }  
+
+  \caption{MMU出队模块处理算法}
+  \label{alg:c4:s4:ss4:dequeue module algorithm}
+\end{algorithm}
+
+
+\xsection{H-DSH性能测试}{H-DSH Evaluation}
+\label{c4:s5:hdsh evaluation}
+
+本节通过在ns-3仿真平台测试H-DSH的性能，实验结果总结如下，与现有机制H-SIH相比：
+
+1）H-DSH对片外缓存的突发吸纳量提升超过3倍。
+
+2）H-DSH可以有效减少PFC触发，避免流量吞吐受损。
+
+3）H-DSH最高可以将平均流完成时间减少14.1\%。
+
+4）H-DSH对无损传播距离的扩展超过4倍。
+
+5）H-DSH在不同流量模式和不同拥塞控制算法下均可以有效减少平均FCT。
+
+\xsubsection{网络和参数配置}{Network and Parameter Configuration}
+
+测试环境均采用图\ref{c4:s1:ss1:fig:star topology}所示的星型拓扑，所有主机通过一个转发设备连接，其中左侧主机作为发送端，右侧主机作为接收端，整个网络拓扑中链路带宽配置为100Gbps，链路传播时延主要配置为1$us$，此时基准RTT为4$us$，$\eta=57640$B。转发设备每个端口支持8个队列，其中队列0为最高优先级，用于存储ACK确认和PFC暂停/恢复帧等控制报文，剩余7个队列之间采用DWRR调度策略。转发设备R部署异构缓存系统，片上缓存容量24MB，片外缓存容量10GB，片外缓存读写总带宽2Tbps。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\linewidth]{Figures/star_topology.pdf}
+  \caption{测试环境拓扑结构}
+  \label{c4:s1:ss1:fig:star topology}
+\end{figure}
+
+缓存管理机制的参数按照如下配置：其中私有缓存大小为3072B，片上缓存动态阈值$\alpha$均配置为1，片外缓存静态阈值大小为16MB，恢复阈值偏移量$\delta_p$和$\delta_q$均设置为0。另外，对于H-SIH，净空缓存空间为每个队列预留$\eta$大小，32个端口下的净空缓存总预留量为$\eta \times N_p \times N_q = 57640\text{B} \times 32 \times 8 \approx 14\text{MB}$，片外带宽占用阈值$\beta = 0.9$；对于H-DSH，净空缓存空间为每个端口预留$\eta$大小，32个端口需要预留的总量为$\eta \times N_p= 57640\text{B} \times 32 \approx 1.75\text{MB}$，片外带宽占用阈值$\beta_f = 0.9$，片外带宽过载阈值$\beta_c = 0.7$。另外，H-SIH和H-DSH中相同参数保持相同配置。相关参数配置总结如图\ref{fig:c4:parameter setting}所示。
+
+\begin{figure}[H]
+  \begin{table}[H]
+      \begin{tabularx}{\textwidth}{YYYY}
+      \toprule
+          \textbf{参数} & \textbf{具体配置} & \textbf{参数} & \textbf{具体配置} \\
+      \midrule
+          片上缓存容量 & 24MB & 端口支持队列数 & 8 \\
+          片外缓存容量 & 10GB  & DT控制参数$\alpha$ & 1\\
+          片外缓存总带宽 & 2Tbps & 片外缓存静态阈值 & 16MB \\
+          $X_{qon}$偏移量$\delta_q$ & 0 & 片外带宽占用阈值 & 0.9 \\
+          $X_{pon}$偏移量$\delta_p$ & 0 & 片外带宽拥塞阈值 & 0.7 \\
+      \bottomrule
+      \end{tabularx}
+  \end{table}
+  \caption{交换芯片相关配置}
+  \label{fig:c4:parameter setting}
+\end{figure}
+
+% \begin{tcolorbox}[height=6cm,colback=black!5!white,colframe=blue!75!black]
+%   参数配置总结表格
+% \end{tcolorbox}
+
+% \todo{参数配置总结表格}
+
+\xsubsection{片外缓存利用}{Off-chip Buffer Utilization}
+\label{c4:s5:ss2:off-chip buffer utilization}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.62\linewidth]{Figures/burst-absorption.pdf}
+  \caption{片外缓存队列长度}
+  \label{c4:s1:ss1:fig:burst absorption}
+\end{figure}
+
+为了验证H-DSH对于片外缓存的利用效率，本节设计实验测试H-DSH在不同突发大小下的片外缓存使用。拓扑中包括发送端和接收端主机各16个，其中背景流采用web \ search\cite{SIGCOMM10DCTCP}模式，流发送时间服从泊松分布，发送端和接收到随机挑选，将链路负载控制到0.9；突发流形式为十六打一，由16个源主机同时发往同一个目的主机，目的主机和流量类别随机产生，连续两次突发间隔时间100$us$。在不同的突发大小下，H-SIH和H-DSH的片外缓存队列长度如图\ref{c4:s1:ss1:fig:burst absorption}所示。实验结果表明，相对于H-SIH，H-DSH可以将片外缓存的突发吸纳量增加超过3倍。
+
+\xsubsection{PFC触发避免}{PFC Avoidance}
+\label{c4:s5:ss2:pfc avoidance hdsh}
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{Figures/pfc-avoidance-web.pdf}
+      \subcaption{背景流PFC暂停时间}
+      \label{c3:s3:ss4:fig:sub1:web flow pfc avoidance}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{Figures/pfc-avoidance-incast.pdf}
+      \subcaption{突发流PFC暂停时间}
+      \label{c3:s3:ss4:fig:sub1:incast flow pfc avoidance}
+  \end{subfigure}
+  \caption{PFC避免}
+  \label{c3:s3:ss4:fig:hdsh pfc avoidance}
+\end{figure}
+
+为了验证H-DSH的PFC避免能力，本节首先在与\ref{c4:s5:ss2:off-chip buffer utilization}节相同的实验环境下进行测试，不同背景流负载下的PFC暂停时长如图\ref{c3:s3:ss4:fig:sub1:web flow pfc avoidance}所示，实验结果表明，相对于H-SIH，H-DSH可以有效减少背景流的PFC触发。在0.9的背景流负载下进一步测试H-DSH对突发流的PFC避免效果，不同突发大小下的PFC暂停时长如图\ref{c3:s3:ss4:fig:sub1:incast flow pfc avoidance}所示，实验结果表明，相对于H-SIH，H-DSH同样可以有效避免突发流的PFC触发，同时随突发大小不断增加，H-DSH的PFC避免效果更显著。
+
+\xsubsection{PFC损害消除}{Collateral Damage Avoidance}
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{Figures/collateral-damage-wo.pdf}
+      \subcaption{受害流$F_0$吞吐率（w/o CC）}
+      \label{c3:s3:ss4:fig:sub1:w/o cc f0 throughput}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{Figures/collateral-damage-TcpNewReno.pdf}
+      \subcaption{受害流$F_0$吞吐率（TCP New-Reno）}
+      \label{c3:s3:ss4:fig:sub1:new reno f0 throughput}
+  \end{subfigure}
+  \caption{PFC损害消除}
+  \label{c3:s3:ss4:fig:throughput damage avoidance}
+\end{figure}
+
+PFC触发可能导致无辜流吞吐率受损，本节通过模拟图\ref{c4:s1:ss1:fig:victim flow scenario}中的受害流场景验证H-DSH的PFC损害避免能力。其中突发流和背景流$F_1$的瓶颈链路位于$R_1-H_{18}$，发生拥塞后会触发其上行链路的PFC暂停，即$R_1$向其上行链路发送暂停帧，进而拥塞传播到$R_0$触发$R_0$向上游发送暂停帧，尽管$F_0$的转发路径不包括瓶颈链路$R_1-H_{18}$，仍然受PFC损害成为受害流。在PFC和PFC+TCP New-Reno拥塞管理机制下测试H-DSH的性能表现，$F_0$的吞吐率结果如图\ref{c3:s3:ss4:fig:throughput damage avoidance}所示。相较于H-SIH，H-DSH可以有效避免受害流$F_0$的吞吐性能损害，这主要得益于H-DSH高效的缓存分配策略，很大程度上避免了PFC的触发。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.62\linewidth]{Figures/fct-evaluation.pdf}
+  \caption{流量传输性能}
+  \label{c4:s1:ss1:flow fct}
+\end{figure}
+
+\xsubsection{流量传输性能}{FCT Imporvement}
+\label{c4:s5:ss4:fct improvement}
+
+为了显示H-DSH对于网络流量整体传输性能的改善，本节采用与\ref{c4:s5:ss2:off-chip buffer utilization}节相同网络拓扑和流量模式，突发总大小配置为8MB，进一步测试H-SIH和H-DSH下的流完成时间，FCT结果如图\ref{c4:s1:ss1:flow fct}所示。结果显示，相对于H-SIH，H-DSH可以显著减少平均FCT，而且随着网络负载增加改善效果更加明显，这得益于H-DSH在片外带宽压力较大时的流量挑选，通过提前暂停部分队列避免片外带宽用尽导致严重性能损害。
+
+\xsubsection{复杂场景适应性}{Complex Network Scenes Adaptability}
+本节进一步验证H-DSH在复杂网络场景下的适应性，主要涉及H-DSH在不同传输距离、流量模式和拥塞控制机制下的扩展性。
+
+\subsubsection{流量模式}
+
+web search流量是网络中主要流量形式之一\cite{SIGCOMM10DCTCP}，\ref{c4:s5:ss4:fct improvement}节验证了H-DSH在该流量模式下的传输性能提升。本节在相同网络拓扑和配置下进一步测试H-DSH对于其它流量模式的适应性，包括Data Mining\cite{SIGCOMM09VL2}、Hadoop\cite{SIGCOMM15FB}和Cache\cite{SIGCOMM15FB}，上述流量模式中流量分布特点如图\ref{c3:s6:ss1:fig:sub1:traffic pattern cdf}所示。不同流量模式下的FCT结果如图\ref{c3:s6:ss1:fig:fct different pattern}所示，结果表明H-DSH对于不同流量模式具有良好的适应性，在不同流量模式下均有不同程度FCT改善。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/traffic-pattern-cdf.pdf}
+      \subcaption{不同模式流量分布}
+      \label{c3:s6:ss1:fig:sub1:traffic pattern cdf}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/fct-evaluation-pattern-cache.pdf}
+      \subcaption{流传输性能（Cache）}
+      \label{c3:s6:ss1:fig:sub1:fct cache}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/fct-evaluation-pattern-hadoop.pdf}
+    \subcaption{流传输性能（Hadoop）}
+    \label{c3:s6:ss1:fig:sub1:fct hadoop}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/fct-evaluation-pattern-mining.pdf}
+    \subcaption{流传输性能（Data Mining）}
+    \label{c3:s6:ss1:fig:sub1:fct mining}
+  \end{subfigure}  
+  \caption{不同流量模式下的流传输性能提升}
+  \label{c3:s6:ss1:fig:fct different pattern}
+\end{figure}
+
+\subsubsection{拥塞控制}
+
+针对复杂网络环境可能存在的异构拥塞控制机制，本节进一步验证H-DSH在不同拥塞控制机制下的适应性。测试环境拓扑结构、网络配置和流量模式与\ref{c4:s5:ss4:fct improvement}节完全相同，测试拥塞控制算法包括TcpReno、Bic、Cubic和BBR，平均FCT结果如图\ref{c3:s6:ss1:fig:fct different cc}所示，实验结果表明，H-DSH对于不同拥塞控制机制具有良好的扩展性，和不同拥塞控制算法配合均能有效减小平均FCT，改善网络性能。
+
+% \todo{DCTCP}
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/fct-evaluation-cc-TcpLinuxReno.pdf}
+      \subcaption{流传输性能（TCP Reno）}
+      \label{c3:s6:ss1:fig:sub1:fct tcp reno}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/fct-evaluation-cc-TcpBic.pdf}
+      \subcaption{流传输性能（TCP Bic）}
+      \label{c3:s6:ss1:fig:sub1:fct tcp bic}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/fct-evaluation-cc-TcpCubic.pdf}
+    \subcaption{流传输性能（TCP Cubic）}
+    \label{c3:s6:ss1:fig:sub1:fct tcp cubic}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/fct-evaluation-cc-TcpBbr.pdf}
+    \subcaption{流传输性能（TCP BBR）}
+    \label{c3:s6:ss1:fig:sub1:fct tcp bbr}
+  \end{subfigure}  
+  \caption{不同拥塞控制机制下的流传输性能提升}
+  \label{c3:s6:ss1:fig:fct different cc}
+\end{figure}
+
+\subsubsection{传输距离}
+
+针对异构缓存系统在跨数据中心长距离传输网络场景下的应用需求，本节基于ns-3模拟长距离传输网络场景，进一步测试H-DSH的传输距离扩展性。考虑到跨数据中心转发设备端口数需求通常较小，本节采用的星型拓扑中转发设备仅连接8个主机，链路带宽设置为100Gbps，为保证异构缓存系统收敛性，片外缓存读写总带宽设置为200Gbps，全局净空缓存池大小设置为16MB。实验背景流通过web search模式产生且服从泊松分布，其中链路负载配置为90\%，突发流以4MB总大小同时从三个发送端发往同一个接收端，突发间隔为1$ms$。整个实验仿真运行100$ms$。不同链路时延下的丢包率统计结果如图\ref{c4:s1:ss1:lossless distance}所示。结果表明，相对于H-SIH，H-DSH对无损传输距离的扩展超过4倍，同时将长距离传输RTT支持范围扩展到毫秒级别。另外，在RTT增加到40ms时，H-DSH仍然可以实现接近于零的丢包率。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.6\linewidth]{Figures/long-haul-transmission.pdf}
+  \caption{无损传输距离扩展}
+  \label{c4:s1:ss1:lossless distance}
+\end{figure}
+
+\xsection{本章小结}{Brief Summary}
+\label{c4:s6:brief summary}
+
+本章首先描述异构缓存系统现行缓存管理策略H-SIH的具体机制，经过分析和实验指出H-SIH存在的片外缓存利用低效性、PFC损害传输性能和长距离传输丢包问题。针对以上问题和RDMA跨数据中心部署趋势，提出了一种适用于异构缓存系统架构的动态共享缓存管理策略H-DSH，H-DSH以片外缓存为中心，将片外缓存作为共享缓存空间动态分配，在进行净空缓存分配时优先利用片外缓存空间，充分利用片外缓存空间。在缓存位置决策时进一步识别流量敏感性以发挥片上缓存和片外缓存各自优势。同时通过提前限制部分拥塞流量对片外缓存的占用，有效降低片外带宽瓶颈出现的概率。最后，本章设计实验验证H-DSH的性能表现，实验结果表明H-DSH在片外缓存利用效率、突发吸纳能力、PFC附带损害避免和流量传输性能等方面均有更好的性能表现，同时验证H-DSH在长距离传输、不同流量模式和异构拥塞控制的复杂网络场景中具有良好的适应性。
+
+\clearpage

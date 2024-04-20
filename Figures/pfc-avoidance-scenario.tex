@@ -1,0 +1,66 @@
+\begin{tikzpicture}[font=\small]
+    \coordinate (south-west) at (0, 0);
+    \coordinate (north-east) at (6, 8);
+    \coordinate (north-west) at (south-west |- north-east);
+    \coordinate (south-east) at (south-west -| north-east);
+    \coordinate (east) at ($(south-east)!0.5!(north-east)$);
+    \coordinate (west) at ($(south-west)!0.5!(north-west)$);
+    \coordinate (south) at ($(south-east)!0.5!(south-west)$);
+    \coordinate (north) at ($(north-east)!0.5!(north-west)$);
+    \draw[line width=2pt, gray, opacity=0.5] (south-west) rectangle (north-east);
+    \begin{scope}[gray, line width=6pt, opacity=0.3]
+        \draw
+            ($(north-west)+(1cm,-1cm)$)
+            -- ($(north-west)+(2cm,-1cm)$)
+            -- ($(south-east)+(-2cm,1cm)$)
+            -- ($(south-east)+(-1cm,1cm)$)
+        ;
+        \draw
+            ($(south-west)+(1cm,1cm)$)
+            -- ($(south-west)+(2cm,1cm)$)
+            -- ($(north-east)+(-2cm,-1cm)$)
+            -- ($(north-east)+(-1cm,-1cm)$)
+        ;
+    \end{scope}
+    \path (north-west) -- (south-west)
+        node[pos=0.7, left] (ingress-4) {\bf \huge $\vdots$}
+        \foreach \i/\c in {0.1/0,0.3/1,0.5/2,0.88/17} {
+            node[pos=\i, rectangle, draw, minimum width=8mm, minimum height=8mm] (ingress-\c) {}
+        };
+    \path (north-east) -- (south-east)
+        \foreach \i/\c in {0.2/31,0.7/30} {
+            node[pos=\i, rectangle, draw, minimum width=8mm, minimum height=8mm] (egress-\c) {}
+        };
+    \foreach \c in {0, 1, 2, 17} {
+        \node [below=0 of ingress-\c] {\bf Port \c};
+    }
+    \foreach \c in {31, 30} {
+        \node [below=0 of egress-\c] {\bf Port \c};
+    }
+    \begin{scope}[darkblue, line width=3pt, ->]
+        \draw
+            ([xshift=-1cm] ingress-0.center)
+            -- ([xshift=1cm] ingress-0.center)
+            to[out=0, in=180] ([xshift=-1cm, yshift=1mm] egress-31.center)
+            -- ([xshift=1cm, yshift=2mm] egress-31.center);
+        \draw
+            ([xshift=-1cm] ingress-1.center)
+            -- ([xshift=1cm] ingress-1.center)
+            to[out=0, in=180] ([xshift=-1cm, yshift=-2mm] egress-31.center)
+            -- ([xshift=1cm, yshift=-2mm] egress-31.center);
+        \node [right=5mm of egress-31] {背景流};
+    \end{scope}
+    \begin{scope}[darkred, line width=3pt, ->]
+        \draw
+            ([xshift=-1cm] ingress-2.center)
+            -- ([xshift=1cm] ingress-2.center)
+            to[out=0, in=180] ([xshift=-1cm, yshift=1mm] egress-30.center)
+            -- ([xshift=1cm, yshift=2mm] egress-30.center);
+        \draw
+            ([xshift=-1cm] ingress-17.center)
+            -- ([xshift=1cm] ingress-17.center)
+            to[out=0, in=180] ([xshift=-1cm, yshift=-2mm] egress-30.center)
+            -- ([xshift=1cm, yshift=-2mm] egress-30.center);
+        \node [right=5mm of egress-30] {突发流};
+    \end{scope}
+\end{tikzpicture}

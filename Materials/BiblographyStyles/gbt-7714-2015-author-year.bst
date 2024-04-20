@@ -1125,7 +1125,7 @@ FUNCTION {inproceedings}
   format.pages punct.colon output.after
   format.citedate "" output.after
   format.url output
-  format.doi output
+  format.doi output 
   fin.entry
 }
 

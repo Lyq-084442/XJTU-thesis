@@ -1,0 +1,56 @@
+\begin{tikzpicture}[font=\large]
+    \node[switch] at (0, 0) (s0) {};
+    \node[above=0 of s0, font=\small] {$S_0$};
+
+    \node[switch, right=1 of s0] (s1) {};
+    \node[above=0 of s1, font=\small] {$S_1$};
+
+    \node[server, above left=-0.1 and 1 of s0] (h0) {};
+    \node[above=0 of h0, font=\small] {$H_0$};
+    \node[server, below left=-0.1 and 1 of s0] (h1) {};
+    \node[above=0 of h1, font=\small] {$H_1$};
+
+    \node[server, below left= 1 and -0.1 of s1] (h2) {};
+    \node[below=0 of h2, font=\small] {$H_2$};
+    \node[server, below right=1 and -0.1 of s1] (h3) {};
+    \node[below=0 of h3, font=\small] {$H_{25}$};
+    \path (h2) -- (h3) node[midway] (dots) {\Large \bf ...};
+
+    \node[server, above right=-0.1 and 1 of s1] (r0) {};
+    \node[above=0 of r0, font=\small] {$R_0$};
+    \node[server, below right=-0.1 and 1 of s1] (r1) {};
+    \node[above=0 of r1, font=\small] {$R_1$};
+
+    % network links
+    \begin{scope}[on background layer, every path/.style={gray, line width=1}]
+        \draw (h0.center) -- (s0.center) -- (s1.center) -- (r0.center);
+        \draw (h1.center) -- (s0.center);
+        \draw (r0.center) -- (s1.center) -- (r1.center);
+        \draw (h2.center) -- (s1.center) -- (h3.center);
+    \end{scope}
+
+    % flows
+    \begin{scope}[line width=2pt, rounded corners=10pt]]
+        \draw[->, darkred]
+            ([yshift=2mm] $(h0.center)!0.2!(s0.center)$)
+            -- ([yshift=2mm] s0.center) node[midway, above, font=\small] {$F_0$}
+            -- ([yshift=2mm] $(s0.center)!0.7!(s1.center)$);
+        \draw[->, darkred]
+            ([yshift=2mm] $(s1.center)!0.2!(r0.center)$)
+            -- ([yshift=2mm] $(r0.center)!0.2!(s1.center)$);
+        \draw[->, darkblue]
+            ([yshift=-2mm] $(h1.center)!0.2!(s0.center)$)
+            -- ([yshift=-2mm] s0.center) node[midway, below, font=\small] {$F_1$}
+            -- ([yshift=-2mm] $(s0.center)!0.7!(s1.center)$);
+        \draw[->, darkblue]
+            ([yshift=-2mm] $(s1.center)!0.2!(r1.center)$)
+            -- ([yshift=-2mm] $(r1.center)!0.2!(s1.center)$);
+        \draw[->, darkblue]
+            ([xshift=2mm] $(h2.center)!0.2!(s1.center)$)
+            -- ([xshift=2mm] $(h2.center)!0.8!(s1.center)$);
+        \draw[->, darkblue]
+            ([xshift=-2mm] $(h3.center)!0.2!(s1.center)$) -- ([xshift=-2mm] $(h3.center)!0.8!(s1.center)$);
+        \node[above=0.2 of dots, darkblue, font=\small] {突发};
+    \end{scope}
+
+\end{tikzpicture}

@@ -1,337 +1,281 @@
 % !TeX root = ../main.tex
 
-\xchapter{浮动体：图表}{Floating: Figures, Tables}
+\xchapter{相关技术}{Related Technologies}
 
-请先注意，在\LaTeX 中，图表不一定要像 Word 一样被固定在某个区域，程序会自动根据上下文为图片选择合适的位置，同时还有具有超链接的交叉引用自动定位图片位置，因此不要强求图片或表格一定处于某个位置。如非要定位，则应在浮动体环境中使用\clist{[H]}选项指定位置。
+\xsection{无损网络}{Lossless Network}
 
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  \begin{enumerate}[leftmargin=0.5cm]
-    \item 图、表、公式等一律用阿拉伯数字分章连续编号，如 图1-3、表2-1、（3-2）等。图、表、公式等与正文之间间隔0.5行。
+\xsubsection{基本介绍}{Basic Introduction}
 
-    \item 图应有图题，表应有表题，并分别置于图号和表号之后，图号和图题应置于图下方的居中位置，表号和表题应置于表上方的居中位置。引用图或表应在图题或表题右上角标出文献来源。
-
-    \item 若图或表中有附注，采用英文小写字母顺序编号，附注写在图或表的下方。
-  \end{enumerate}
-\end{tcolorbox}
-
-\xsection{图}{Figures}
-
-
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  \begin{enumerate}[leftmargin=0.5cm]
-    \item 插图须紧跟文述。在正文中，一般应先见图号及图的内容后再见图，一般情况下不能提前见图，特殊情况须延后的插图不应跨节；
-    \item 提供照片应大小适宜，主题明确，层次清楚，金相照片一定要有比例尺；
-    \item 图应具有“自明性”，即只看图、图题和图例，不阅读正文，就可理解图意。图中的标目是说明坐标轴物理意义的项目，它是由物理量的符号或名称和相应的单位组成。物理量的符号由斜体字母标注，单位的符号使用正体字母标注，量与单位间用斜线隔开。例如：$I/\SI{}{A}$，$\rho/\SI{}{kg\cdot m^{-3}}$，$F/\SI{}{N}$，$v/\SI{}{m\cdot s^{-1}}$等等；
-    \item 图中用字为五号，如排列过密，用五号字有困难时，可小于五号字，但不得小于七号字；
-    \item 图尺寸的\textbf{一般宽高比}应为 \SI{6.67}{cm}$\times$\SI{5.00}{cm}。特殊情况下，也可为 \SI{9.00}{cm}$\times$\SI{6.75}{cm}，或 \SI{13.5}{cm}$\times$\SI{9.00}{cm}。总之，一篇论文中，同类图片的大小应该一致，编排美观、整齐；
-    \item 一幅图如有若干幅\textbf{分图}，均应编分图号，用(a)，(b)，(c),...... 按顺序编排，且各分图的分题注直接列在各自分图的正下方，总题注列在所有分图的下方正中「
-  \end{enumerate}
-\end{tcolorbox}
-
-\xsubsection{单张图片的使用}{Single Figure}
-
-\begin{texcodeonly}[]{}
-  \begin{figure}[h]
-    \centering
-    \includegraphics[width=.5\textwidth]{xjtu.pdf}
-    \caption{校徽}
-  \end{figure}
-\end{texcodeonly}
-
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=.5\textwidth]{xjtu.pdf}
-  \caption{校徽}
-\end{figure}
-
-一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。一些图片下方的文字。
-
-\xsubsection{多张图片：应该使用 subcaption 而不是 subfigure}{Use subcaption instead of subfigure}
-
-\begin{texcodeonly}[]{}
-  \begin{figure}[h]
-    \begin{subfigure}[b]{0.49\linewidth}
-        \centering
-        \includegraphics[width=.5\textwidth]{xjtu.pdf}
-        \subcaption{校名}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.49\linewidth}
-        \centering
-        \includegraphics[width=.5\textwidth]{xjtu.pdf}
-        \subcaption{校名}
-        \label{subfigure:icon}
-    \end{subfigure}
-    \caption{校徽}
-    \label{fig:icon}
-  \end{figure}
-\end{texcodeonly}
-
-\begin{figure}[h]
-  \begin{subfigure}[b]{0.49\linewidth}
-      \centering
-      \includegraphics[width=.5\textwidth]{xjtu.pdf}
-      \subcaption{校名}
-  \end{subfigure}
-  \begin{subfigure}[b]{0.49\linewidth}
-      \centering
-      \includegraphics[width=.5\textwidth]{xjtu.pdf}
-      \subcaption{校名}
-      \label{subfigure:icon}
-  \end{subfigure}
-  \caption{校徽}
-  \label{figure:icon}
-\end{figure}
-
-\xsubsection{多张子图分页}{Break multiple figures}
-
-\newcommand{\subfigg}{
-  \begin{subfigure}[b]{0.49\linewidth}
-    \centering
-    \includegraphics[width=.5\textwidth]{xjtu.pdf}
-    \subcaption{校名}
-  \end{subfigure}
-}
-
-为了简化叙述，定义一个命令 \clist{\subfigg} 代表插入一个子图：
-\begin{texcodeonly}[]{}
-  \newcommand{\subfigg}{
-    \begin{subfigure}[b]{0.49\linewidth}
-      \centering
-      \includegraphics[width=.5\textwidth]{xjtu.pdf}
-      \subcaption{校名}
-    \end{subfigure}
-  }
-\end{texcodeonly}
-
-在\clist[columbiablue]{subfig}宏包中提供了\clist{\ContinuedFloat}命令，使一个浮动体环境与其内子图的编号跟随前一个子图，此时两个浮动体环境可以分别设置标题，若具有相同的标题，或后续图的标题设置为 \clist{（续）}，则可以实现子图分页的效果。同时，模板提供了 \clist{\floatcontinue} ，通过包装\clist{\ContinuedFloat}使得子图在此命令处断页，不产生图标题，并在下一页生成图题。此两种命令均可使用，按照喜欢或需求使用。
-\clearpage
-\subsubsection{使用 ContinuedFloat}
-
-\begin{texcodeonly}[]{}
-  \begin{figure}[h]
-    \subfigg    \subfigg
-    \caption{校徽}
-  \end{figure}
-  
-  \begin{figure}[H]
-    \ContinuedFloat
-    \subfigg    \subfigg
-    \subfigg    \subfigg
-    \caption{校徽} % 或 \caption{（续）}
-  \end{figure}
-\end{texcodeonly}
-
-\begin{figure}[h]
-  \subfigg    \subfigg
-  \caption{校徽}
-\end{figure}
+数据中心通过部署RDMA提供高带宽和超低时延的网络服务\cite{wang2021datacenter}。RDMA利用相关硬件和网络技术，使主机的网卡之间可以直接读取内存，从而实现高带宽、低时延和低CPU开销的网络传输。RDMA提出之初承载在无损的IB（Infinite Band）网络中，专用的IB网络架构封闭，无法兼容现网，使用成本较高。RoCE（RDMA over Converged Ethernet）进一步提出，RoCE使用以太网承载RDMA的网络协议，目前主要有两个版本：RoCEv1和RoCEv2。
 
 \begin{figure}[H]
-  \ContinuedFloat
-  \subfigg    \subfigg
-  \subfigg    \subfigg
-  \caption{校徽} % 或 \caption{（续）}
+  \centering
+  \includegraphics[width=0.7\linewidth]{Figures/lossless_network.pdf}
+  \caption{无损网络部署场景}
+  \label{c4:s1:ss1:lossless network}
 \end{figure}
 
-\subsubsection{使用 floatcontinue}
+无损网络的常见部署场景如图\ref{c4:s1:ss1:lossless network}所示，分布式存储、高性能计算（High Performance Computing，HPC）、分布式机器学习等场景广泛采用RoCEv2协议来提升网络性能\cite{zhao2021intelligent}。RoCEv2是一种基于无连接的UDP协议，缺乏完善的丢包保护机制，对于网络丢包异常敏感。同时，分布式高性能应用通常为多对一通信的Incast流量模型，对于以太网的设备，Incast流量易造成设备内队列的瞬时突发拥塞甚至丢包，导致时延的增加和吞吐的下降，从而损害分布式应用的性能\cite{calder2011windows,zaharia2012resilient}。因此，为了发挥出RDMA的真正性能，突破数据中心大规模分布式系统的网络性能瓶颈，需要为RDMA搭建一套无丢包、低时延、高吞吐的无损网络环境。
 
-\begin{texcodeonly}[]{}
-  \begin{figure}[h]
-    \subfigg    \subfigg
-    \floatcontinue{tb}
-    \subfigg    \subfigg
-    \subfigg    \subfigg
-    \caption{校徽}
-  \end{figure}
-\end{texcodeonly}
+无损网络即无丢包的网络\cite{SIGCOMM15DCQCN,lu2018multi,NSDI20PCN}，具体地，不因转发设备缓存溢出而导致丢包，其目的是为了提供高带宽和超低时延的网络服务。相对于传统易丢包、高延迟的有损网络而言，无损网络需要在流量控制、拥塞控制、路由选择和缓存管理等方面进行较大改进。目前主流的无损网络架构主要有两类：增强型以太网\cite{reinemo2010ethernet}（Converged Enhanced Ethernet，CEE）和IB网络\cite{SIGCOMM15DCQCN,zhu2015packet}（InfiniBand network）。IB网络主要部署于HPC系统中，由于传统网络中基于TCP/IP的以太网技术占据主导地位，相较于基于无损以太网的CEE，IB网络和原有的网络架构分离，无法兼容现网。因此CEE在数据中心网络应用中得到了更广泛的应用。
 
-\begin{figure}[h]
-  \subfigg    \subfigg
-  \floatcontinue{tb}
-  \subfigg    \subfigg
-  \subfigg    \subfigg
-  \caption{校徽}
+
+\xsubsection{基于优先级流量控制}{Priority-based Flow Control}
+\label{c2:s4:priority-based flow control}
+
+基于以太网的数据中心网络通过PFC\cite{PFC}保证无损数据传输。如图\ref{fig:c2:priority-based flow control}所示，PFC是一种逐跳运行的流量控制机制，在支持PFC的转发设备中，如果一个入口队列的长度超过预设的阈值$X_{off}$，交换机将会向上游设备发送一个暂停帧。上游设备收到这个暂停帧后暂停向下游发送报文，暂停帧中携带暂停发送的持续时间。当被暂停入口队列的长度小于阈值$X_{on}$后，交换机会向上游设备发送恢复帧（暂停持续时间为0的暂停帧）以恢复数据包的发送。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{priority_based_flow_control.pdf}
+  \caption{基于优先级的流量控制}
+  \label{fig:c2:priority-based flow control}
 \end{figure}
 
+为了防止丢包，$X_{off}$的大小需要保守设置。其原因在于暂停帧需要一定的时延才能到达上游设备并且真正发挥作用，所以需要预留足够的缓存空间用于存储该时延内到达的数据包，这部分缓存空间称为净空缓存。PFC标准支持8个优先级类别\cite{PFC}，报文到达后被分类到不同的优先级，每个优先级被映射到一个单独的队列，不同优先级的报文进入不同的队列。PFC控制帧中携带优先级信息，所以仅暂停或者恢复指定的流量类别。
+
+净空缓存大小需要合理地配置以避免丢包。暂停帧需要一定的时延才能发挥其作用，所以MMU需要预留足够地净空缓存空间吸纳这段时延内到达地数据包。参考相关文献\cite{SIGCOMM15DCQCN,SIGCOMM16RDMA,CiscoNexus7000PFC,PFCProposal}，净空缓存理论上按照如下公式配置：
+\begin{equation}
+    \eta = 2(C \cdot D_{prop} + L_{MTU}) + \text{3840B}
+    \label{eqn:c2:headroom calculation}
+\end{equation}
+
+其中，$C$表示上行链路的带宽，$D_{prop}$表示上行链路的传播时延，$L_{MTU}$为最大传输单元（Maximum Transmission Unit，MTU）的包大小，B为单位，表示字节数。PFC暂停帧发挥作用需要的时延由以下五部分组成：
+
+1）等待时延：暂停帧产生的时候所在端口可能正在发送另一个数据包，需要等待其传输结束才能开始传输暂停帧。最坏情况下，这个端口可能恰好开始传输一个一个MTU大小数据包的第一个比特，因此暂停帧需要等待的时间为$L_{MTU} / C$。
+
+2）传播时延（暂停帧）：暂停帧传播到上游设备的时延$D_{prop}$决定于传播距离和信号的传播速度。在数据中心中，两个直接连接的交换机最大可达300米\cite{SIGCOMM16RDMA}；对于单模光纤，光信号的传播速度可以达到真空中光速的65\%。
+
+3）处理时延：交换机需要花费一定时间去处理暂停帧之后才能开始暂停数据包的传输，PFC中定义这段时延最大为$3840B/C$\cite{CiscoNexus7000PFC}。
+
+4）响应时延：当上游设备开始执行暂停操作时可能正在发送另一个数据包。最坏情况下，交换机恰好开始发送一个MTU大小数据包的第一个比特，因此，上游设备仍然需要等待$L_{MTU} / C$时延后才能真正开始暂停动作。
+
+5）传播时延（最后一个数据包）：当上游设备停止发送数据包时，链路上还有一些正在传输中的数据包将会被下游设备接收到，这些数据包也应该被净空缓存吸纳掉。直到链路上的最后一个数据包到达下游设备仍需要$D_{prop}$的传播时延。 
+
+
+\xsubsection{PFC转发设备缓存分区}{Buffer Partition in PFC-enabled Device}
+\label{c2:buffer partition in pfc-enabled device}
+
+转发设备中等待传输的数据包被暂存在缓存中。为了实现高速低时延的数据包访问，商业高速交换芯片通常采用片上缓存\cite{SIGCOMM16RDMA,SIGCOMM15Jupiter,BroadcomSmartBuffer,ExtremeBuffer,BroadcomTrident3,BroadcomTomahawk4,CiscoNexus9300Buffer,Arista7050X3}。路由器对于时延的容忍度较高，需要大容量缓存空间，通常在片上缓存的基础上搭载片外缓存\cite{CiscoNcs5500,BCM88480}。缓存系统通常采用共享缓存结构，缓存在不同端口或队列之间的分配由缓存管理单元（Memory Management Unit, MMU）管理。如图\ref{fig:c2:buffer partition}所示，在支持PFC的转发设备中，片上缓存通常被划分为两个缓存池：无损缓存池和有损缓存池\cite{CiscoNexus9300Buffer,BCM88800TM,MellanoxRoCEConfig}。无损缓存池专用于无损流量，利用PFC来避免丢包。有损缓存池专用于有损流量，其中的流量允许在缓存溢出时发生丢包。缓存通过硬分区来保证无损流量和有损流量之间的隔离性。本文工作主要针对无损缓存池。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{buffer_partition.pdf}
+  \caption{PFC转发设备缓存分区}
+  \label{fig:c2:buffer partition}
+\end{figure}
+
+在无损缓存池中，缓存进一步划分为三个分区：
+
+1）私有缓存：为每个队列预留的缓存空间，保证每个队列的最小缓存资源占用。
+
+2）共享缓存：在所有队列之间共享的缓存空间，根据队列长度动态分配。
+
+3）净空缓存：给每个队列预留的缓存空间，用于存储PFC暂停帧发送后生效前到达的数据包。
+
+
+\xsection{缓存技术}{Buffer Technology}
+
+缓存在网络中发挥着重要的作用，由于网络中不可避免会存在拥塞和突发，很多协议如TCP正是依靠网络中的拥塞来实现可靠传输，同时TCP本身不可避免地向网络中引入突发，以及设备转发过程中可能存在的调度时延，所以报文在到达转发设备后不一定能够直接发送。为了避免丢包，无法即时发送的数据包需要在转发设备进行暂存。缓存即用来暂存不能立即发送的数据包，历史上关于缓存大小达成的共识为缓存至少需要容纳源节点和目的节点之间的发送中数据包量，即一个时延带宽积（Bandwidth Delay Product，BDP）的大小。另外，缓存需要满足设备的带宽需求以保证所有同时到达的流量可以被缓存完全吸收。
+
+\xsubsection{共享缓存结构}{Shared Buffer Structure}
+
+转发设备（包括交换机和路由器）中最常见的缓存结构为共享缓存结构，在该结构中，所有出端口和入端口共享同一块缓存空间\cite{9776493,SIGCOMM10DCTCP,cummings2010sharedmemory,broadcom2012smartbuffer}。如图\ref{fig:c2:shared buffer structure}所示，当数据包到达入端口后被写入共享缓存中暂存，当该数据包被调度出队时会从共享缓存读出经出端口转发。整个共享缓存被划分为多个队列，每个端口可以有一个或多个队列，由调度策略决定出队队列。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\textwidth]{shared_buffer.pdf}
+  \caption{共享缓存结构}
+  \label{fig:c2:shared buffer structure}
+\end{figure}
+
+\xsubsection{缓存系统架构}{Buffer System Architecture}
+
+如图\ref{fig:c2:buffer system architecture}所示，整个缓存系统包括缓存模块、缓存管理模块、队列管理模块和保序模块。缓存模块即存储器，用于暂存数据包；缓存管理模块对缓存的使用情况进行监测并根据监测结果在数据包到达时进行决策；队列管理模块负责维护每个端口的出口队列，其中调度器用于在多个队列之间进行调度决定出队队列；保序模块用于对出队数据包进行重排序，以保证每个队列数据包发送时不会乱序。
+
+数据包在缓存系统中的具体处理流程总结如下：数据包进到达入端口后首先由控制器中的缓存管理模块根据缓存占用情况和缓存管理策略进行决策，决定该数据包在缓存中的存储位置或者直接将其丢弃，数据包决定存入缓存的同时会由队列管理模块决定其入队队列并将其入队，出口队列只有一个逻辑上的队列，其中存放的为数据包描述符，其中包含数据包指针，即数据包在缓存中的地址。队列管理模块通过划分多队列来实现QoS差异化服务，调度器中的调度策略决定从多个队列中挑选出队队列，出队数据包描述符去往保序模块的同时从缓存中读取对应数据包，保序模块为出队数据包申请一个保序标识，当数据包从缓存中读出后根据保序标识对数据包进行重排序，最终按照正确的顺序将数据包送往出端口发出。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{buffer_system_architecture.pdf}
+  \caption{缓存系统架构}
+  \label{fig:c2:buffer system architecture}
+\end{figure}
+
+% \todo{报文处理流程}
+% \begin{tcolorbox}[height=5cm,colback=black!5!white,colframe=blue!75!black]
+%   报文处理流程
+% \end{tcolorbox}
+
+\xsubsection{缓存系统类型}{Buffer System Type}
+
+根据缓存系统的缓存组成以及物理特性可以将其划分为不同的类型，常见的缓存系统类型包括纯片上缓存系统、非收敛片外缓存系统和收敛片外缓存系统：
+
+\subsubsection{片上缓存系统}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{onchip_buffer_system.pdf}
+  \caption{纯片上缓存系统}
+  \label{fig:c2:on-chip buffer system}
+\end{figure}
+
+纯片上缓存系统的缓存位于交换芯片上，不存在外部存储器。片上缓存采用静态随机存储器（Static Random Access Memory，SRAM）技术，SRAM读取速度快，可以在一个时钟周期内完成完成存取操作，其带宽可以满足交换机线速写入和读出的需求，读写时延仅为纳秒级别。但是受限于交换芯片面积和能耗，片上缓存无法做到较大的容量，通常只有几十兆字节数大小，对于突发吸纳容量敏感。纯片上缓存系统的工作流程如图\ref{fig:c2:on-chip buffer system}所示，一个数据包到达输入端口时，可以被控制器决策直接线速存入片上缓存。在该数据包位于队列首部且所在队列获得调度机会时，控制器将其从片上缓存线速读出经出端口发送。纯片上缓存结构一般应用于交换机中，以满足交换机高速低时延的报文转发需求。
+
+\subsubsection{非收敛片外缓存系统}
+
+非收敛片外缓存系统在芯片上部署片上缓存的同时搭载一块片外缓存。如图\ref{subfig:c2:non-convergent off-chip buffer system}所示，片外缓存系统中新增了在片外缓存进行数据包存取的数据通路，片外缓存采用动态随机存储器（Dynamic Random Access Memory，DRAM）技术，DRAM存储成本较低，因此常被用来作为大容量外部存储器，片外缓存容量可以做到千兆级别。在非收敛片外缓存系统中，片外缓存和片内缓存带宽均大于两倍的芯片吞吐，因此都可以实现和芯片的线速数据包交换。但是相对于时延仅两三百纳秒的片上缓存，片外缓存的读写时延较高，达到微秒级别。所以，相对于纯片上缓存系统，非收敛片外缓存系统通过搭载片外缓存将容量扩展到千兆，可以支持海量队列应用场景，但是同时带来了较大的队列时延和时延抖动，以及片上缓存和片外缓存时延差异导致的队列头阻问题。路由器对于时延有较高的容忍度且需要大容量缓存，因此非收敛片外缓存系统常用于传统路由器。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{non_convergent_offchip_buffer_system.pdf}
+      \subcaption{非收敛片外缓存系统}
+      \label{subfig:c2:non-convergent off-chip buffer system}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{convergent_offchip_buffer_system.pdf}
+      \subcaption{收敛片外缓存系统}
+      \label{subfig:c2:convergent off-chip buffer system}
+  \end{subfigure}
+  \caption{片外缓存系统}
+\end{figure}
+
+\subsubsection{收敛片外缓存系统}
+
+收敛片外缓存系统即异构缓存系统，与非收敛片外缓存系统类似，收敛片外缓存系统同样结合SRAM和DRAM技术，利用DRAM扩展缓存容量。不同的是，收敛片外缓存系统存在片外带宽瓶颈，其带宽仅为20\%到40\%的芯片读写带宽。对于带宽的收紧降低了片外缓存系统的成本开销，但是可能增加从片外缓存读取数据包的时延或者加剧队列头阻问题。收敛片外缓存系统中需要将片外缓存带宽和片内缓存容量作为资源进行合理高效地管理，使其性能接近甚至到达与非收敛片外缓存系统同等水平，所以在收敛片外缓存系统中缓存管理策略尤为重要。其数据通路如图\ref{subfig:c2:convergent off-chip buffer system}所示，在片外带宽使用未知的情况下将数据包决策进入片外缓存时无法保证其成功写入到片外缓存，可能由于片外缓存带宽用尽而丢包。
+
+
+\xsection{异构缓存系统}{Hybrid Buffer System}
+
+异构缓存系统中同时部署片上缓存和片外缓存，片上缓存将SRAM存储器集成在芯片上，片外缓存通过HBM技术\cite{jedecHBM2E,kim2019design}将DRAM存储器在片外堆叠。在异构缓存系统中，一个数据包从到达系统到离开系统完整生命周期内可能经历不同的操作，数据包从入端口进入后需要决策其是否存储以及存储位置，存储缓存位置确定后仍然可能经历搬移或者丢弃，调度出队时从缓存读出经出端口发送。理论上异构缓存系统支持完整的数据包处理流程，但在实际操作中，并不是所有的流程都会利用到。不同的流程选择直接影响异构缓存系统的服务质量（Quality of Service，QoS），根据其流程选择可以将异构缓存系统进一步划分为不同的工作模型。
+
+\xsubsection{高带宽缓存技术}{High Bandwidth Memory Technology}
+
+HBM技术是一种新型的存储技术，相对于传统的双倍速率（Double Data Rate，DDR）内存芯片，HBM可以提供更高的内存带宽、更低的访问延迟、更大的容量以及更低的能耗。目前，HBM被广泛应用于高性能计算、图形处理、人工智能和机器学习以及网络设备等领域。
+
+HBM在架构上采用了3D堆叠封装技术，如图\ref{fig:c2:hbm architecture}所示，HBM通过将DRAM芯片以垂直堆叠的方式组织在一起\cite{jedecHBM2E,kim2019design}。每个HBM存储器堆由多个DRAM芯片组成，通过硅互连通道进行连接，形成一个垂直堆叠的结构。这种堆叠架构使HBM具有高密度和较小的占用空间，同时实现了更短的信号传输距离，从而提供了更高的带宽。尽管每个HBM存储器堆的容量相对较小，但通过堆叠多个存储器堆，使HBM可以实现较大的总容量。同时，HBM通过每个DRAM芯片上的多个通道实现并行数据传输。每个HBM存储器堆可以提供多个通道，每个通道可以同时传输数据，有效地提高了数据传输速率。另外，HBM在设计上优化了功耗效率。得益于其堆叠结构和短距离信号传输，HBM能够以较低的电压和功耗提供高带宽，从而降低整个系统的能耗。同时，HBM具有容量可扩展性。HBM的单层DRAM芯片容量可扩展；HBM通过4层、8层以至12层堆叠的DRAM芯片，可实现更大的存储容量；HBM还可以通过3D系统级封装集成多个HBM叠层DRAM芯片，从而实现更大的内存容量。最新的HBM3堆栈容量可达24GB\cite{DYFZ202302005}。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{hbm_architecture.pdf}
+  \caption{3D堆叠封装技术}
+  \label{fig:c2:hbm architecture}
+\end{figure}
+
+在网络设备中，HBM通常作为外部存储器用来构建异构缓存系统。相对于芯片内部的SRAM，HBM可以提供超过百倍大小的缓存容量。通过结合片上存储和片外存储的异构缓存架构，可以提高网络设备的性能和扩展性，充分结合片上存储高带宽和片外存储大容量的优势。
+
+\xsubsection{工作模型}{Work Flow}
+
+在异构缓存系统中，一个数据包从到达系统到离开系统完整生命周期内可能经历不同的处理通路。通用工作模型中包括完整报文处理通路，根据缓存系统支持的报文处理通路可以进一步划分为串行工作模型和并行工作模型。
+
+\subsubsection{通用工作模型}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\textwidth]{general_work_flow.pdf}
+  \caption{通用工作模型}
+  \label{fig:c2:general work flow}
+\end{figure}
+
+异构缓存系统通用工作模型的完整数据流程如图\ref{fig:c2:general work flow}所示，一个数据包从入端口进入设备后，首先由控制器进行决策，决策的结果包括丢弃、进入片上缓存和进入片外缓存，在存储转发模型中，数据包必须完整地接收并存储到缓存中才能进行转发，所以不存在直接去往出端口的数据通路。数据包在片上缓存或者片外缓存存储期间，可以对数据包进行丢弃或者片上和片外缓存相互之间的搬移。在调度决策该数据包出队时，数据包可以片上缓存或者片外缓存读出交给出端口进行发送。
+
+\subsubsection{并行工作模型}
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.8cm]{parallel_work_flow.pdf}
+      \subcaption{数据流}
+      \label{subfig:c2:parallel work flow}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.8cm]{out_of_order_in_parallel.pdf}
+      \subcaption{报文交织}
+      \label{subfig:c2:out of order}
+  \end{subfigure}
+  \caption{并行工作模型}
+\end{figure}
+
+异构缓存系统并行工作模型的完整数据流程如图\ref{subfig:c2:parallel work flow}所示，并行工作模型中不会进行数据包搬移，数据包只有在入队决策时才允许进行丢弃操作。数据包入队时决策其是否丢弃以及存储的位置，根据决策结果进入片上或片外缓存，之后不会再进行缓存位置变动，直到数据包出队时从缓存读出经出端口发送。
+
+由于片上缓存和片外缓存之间存在读取时延差异，异构缓存系统中出队数据包可能会产生交织，并行工作模型中可能存在的报文交织场景如图所示，图\ref{subfig:c2:out of order}中显示了一个出口队列中的排队报文，其中P1、P3和P6存储在片外缓存中，P2、P4和P5存储于片上缓存，假设当前所有队列中仅该队列中有报文积累且后续没有新的报文入队，调度策略采用差分轮询（Deficit Round Robin，DRR）。经过六轮调度之后，该队列中所有报文均完成出队，由于片上片外缓存读取时延差异，P2、P4和P5先到达保序模块之后，P1、P3和P6经过一定时延之后才能到达，此时即使P2、P4和P5可以到达，由于保序要求仍需要等待队列前面的数据包到达并发送之后才能进行转发，由此报文交织导致时延抖动。
+
+\subsubsection{串行工作模型}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\textwidth]{serial_work_flow.pdf}
+  \caption{串行工作模型}
+  \label{fig:c2:serial work flow}
+\end{figure}
+
+异构缓存系统串行工作模型的完整数据流程如图\ref{fig:c2:serial work flow}所示，串行工作模型允许进行片上缓存向片外缓存的报文搬移，同样报文只有在入队决策时才允许进行丢弃操作。不同于并行工作模型，报文入队时决策丢弃还是存储，如果存储则全部存储于片上缓存，不会在决策进入片外缓存，后续在适当的时机可以将报文从片上搬移到片外，如队列拥塞时，所以片外缓存中的报文只可能从片上缓存搬移后进入。在进行报文搬移时存在两种搬移方式：队头搬移和队尾搬移。
+
+队头搬移过程如图\ref{subfig:c2:move from head}所示，将排在队头的P1、P2和P3搬移进入片外缓存，新到达的报文P7进入片上缓存，队头搬移后出队时，由于产生交织，片上缓存的P4、P5、P6和P7需要等待P1、P2和P3从片外缓存读出后才能进行转发。
+
+队尾搬移过程如图\ref{subfig:c2:move from tail}所示，将排在队尾的P4、P5和P6搬移进入片外缓存。另外，从队尾搬移时需要增加前向链表结构以便找到节点的前趋节点，新到达的报文P7进入片上缓存后产生交织，搬移P7之后不利于下次搬移时查找片上缓存的队尾报文P3。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.8cm]{move_from_head.pdf}
+      \subcaption{队头搬移}
+      \label{subfig:c2:move from head}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.8cm]{move_from_tail.pdf}
+      \subcaption{队尾搬移}
+      \label{subfig:c2:move from tail}
+  \end{subfigure}
+  \caption{串行工作模型不同搬移方式}
+\end{figure}
+
+\xsection{ns-3网络仿真平台}{ns-3 Network Simulator}
+
+本文基于ns-3网络仿真平台模拟真实网络环境。ns-3是一个由事件驱动的离散事件仿真器，ns-3提供了有关分组数据网络如何工作和执行的模型，并为用户提供了用于进行仿真实验的仿真引擎\cite{ns-3,matthias2010ns3,ru2017ns3}，其系统架构如图\ref{fig:c2:ns3 architecture}所示。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[height=6cm]{ns3_architecture.pdf}
+  \caption{ns-3系统架构}
+  \label{fig:c2:ns3 architecture}
+\end{figure}
+
+ns-3能够在一台计算机中模拟出各种类型和规模的网络结构。现实中的计算机网络主要由两部分组成：网络拓扑和网络协议。网络拓扑是由许多结点和连接这些结点的链路组成，网络协议运行在这些结点的协议栈中。ns-3模拟这样的一个网络的基本原理是：首先，ns-3将网络拓扑结构中的结点和链路抽象成C++中的各种类，比如Node类和Channel类，结点和链路之间的连接操作则被抽象为这些对象之间的联系。ns-3通过这些抽象模拟出物理网络中的物理模型、传输协议和网络拓扑结构，比如交换机、点对点协议（Point to Point Protocol, PPP）和基于IEEE 802.11系列标准的无线局域网等。
+
+ns-3使用离散事件来模拟网络中的各种传输协议。通过把真实物理世界中连续的过程抽象成了仿真器中虚拟的离散事件，从而模拟现实计算机网络中的各种协议，ns-3支持的协议如图\ref{fig:c2:protocols supported in ns-3}所示，包括物理层的IEEE 802.11系列、PPP、链路层的ARP、网络层的IPv4、IPv6、传输层的UDP、TCP协议和应用层的ping协议等。
+
+为了方便用户使用，ns-3还提供了诸多辅助功能。如trace功能，用户可以利用wiresharktcpdump和tcpdump等软件简单便捷地分析ns-3仿真中的数据，ns-3中集成的移动模块使得在移动网络中移动结点和分配移动轨迹变得简单方便。除此之外，ns-3模拟出来的虚拟网络可以很好地和现实的物理网络进行融合。一方面，物理网络中的结点设备可以使用ns-3模拟的虚拟链路发送和接收数据包；另一方面，ns-3模拟的结点也可以利用现实中的物理网络链路传输数据。
+
+\begin{figure}[H]
+  \begin{table}[H]
+      \begin{tabularx}{\textwidth}{cY}
+      \toprule
+          网络层次 & 网络协议 \\
+      \midrule
+          应用层 & 分组产生器、应用层协议ping等 \\
+          传输层 & UDP、TCP \\
+          网络层 & IPv4、IPv6和静态路由、OSPF、BGP等路由协议 \\
+          链路层 & Ethernet（IEEE 802.3）、Wi-Fi（IEEE 802.11）、PPP和ARP等 \\
+          物理层 & Wi-Fi（IEEE 802.11）、WiMAX（IEEE 802.16）和LTE等 \\
+      \bottomrule
+      \end{tabularx}
+  \end{table}
+  \caption{ns-3支持的各层协议}
+  \label{fig:c2:protocols supported in ns-3}
+\end{figure}
+
+用户可以利用ns-3模拟出现实中的大规模物理网络，并且在其中实现自己的协议和其它控制代码进行测试，这样就不需要搭建真实的网络，既降低了操作难度，也可以降低开发成本。目前，ns-3网络仿真平台仍然在不断的开发和更新中，在物联网、数据中心、软件定义网络、第五代移动通信（5G）等网络中得到了广泛的应用。
+
+本文基于ns-3仿真片上缓存系统和异构缓存系统模型。实现的主要功能模块包括片上缓存、片外缓存、缓存管理模块、队列管理模块和保序模块。片上缓存通过扩展Node类实现，片外缓存由OffChipBuffer类实现，模拟HBM读写带宽、总线冲突、读写时序和批处理等物理特性，缓存管理模块通过Mmu类实现，可以通过组合到Node类中为其提供缓存监测和准入决策功能，队列管理模块通过ns-3内置的排队规则（Queue Discipline，qdisc）实现，基于qdisc实现不同的调度策略，并通过Filter和Class构建多层级调度模型，保序模块通过扩展NetDevice模块的Queue实现保序功能。其中缓存管理策略通过在Mmu中实现，包括面向片上缓存系统的SIH和DSH，以及面向异构缓存系统的H-SIH和H-DSH。
+
+
+\xsection{本章小结}{Brief Summary}
+
+本章首先对无损网络相关技术进行介绍，对无损网络的部署需求、应用场景、实现技术和主要架构等技术进行简要介绍，主要针对PFC机制工作原理和PFC设备缓存分区结构进行了详细描述。其次对缓存系统进行概述，主要涉及缓存作用、需求和结构，总结并对比了不同类型缓存系统的结构和特点。然后针对异构缓存系统进行详细阐述，介绍HBM缓存技术在异构缓存系统中的应用，总结了串行工作模型和并行工作模型的特点和区别。最后简要介绍了ns-3网络仿真平台的架构和功能。
 
 \clearpage
-
-\xsection{表}{Tables}
-
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  \begin{enumerate}[leftmargin=0.5cm]
-    \item 如某个表需要转页接排，在随后的各页上应重复表的编号。编号后跟表题（可省略）和“（续）”，如表 1-1（续），续表均应重复表头和关于单位的陈述。表格的设计应紧跟文述。表的编排一般是内容和测试项目由左至右横读，数据依序竖读，应有自明性。若为大表或作为工具使用的表格，可作为附表在附录中给出，论文中的表格参数应标明量和单位的符号；
-    \item 表中各物理量及量纲均按国际标准(SI) 及国家规定的法定符号和法定计量单位标注；
-    \item 一律使用三线表，与文字齐宽，顶线与底线线粗为 $1.5$ pt，中线线粗是 $1$ pt；
-    \item 使用他人表格须注明出处。
-    \item 表中用字为五号字体。如排列过密，用五号字有困难时，可小于五号字，但不小于七号。
-    \item 表格必须通栏，即表格宽度与正文版面平齐。
-  \end{enumerate}
-\end{tcolorbox}
-
-
-\xsubsection{普通表格}{Normal Tables}
-
-
-考虑到使用成本、内容与样式分离。模板默认调用现代化的表格绘制宏包 \clist[columbiablue]{tabularray}。该宏包的使用方法请使用 \clist{texdoc tabularray}，网上也有此手册的中文翻译。请确保使用的发行版包含这一宏包（即更新至 2023 及以后的版本）。
-
-非跨页表格应使用 tblr 环境制作表格，使用 table 作为浮动体环境，使用 \clist{\toprule}，\clist{\midrule} 和 \clist{\bottomrule} 指定三线表的三条线：
-
-\begin{texcode}[]{}
-    \begin{table}[H]
-        \caption{tblr 基本用法}
-        \label{tbl:2-1}
-        \begin{tblr}{
-            % colspec={X[r,m,2]X[c,3]X[l,1]}
-            X[r,m,2]X[c,3]X[l,1]
-        }
-            \toprule
-            Head & Test & 测试 \\
-            \midrule
-            Class that has many accessor methods and accesses a lot of external data & ATFD is more than a few & 3 \\
-            1 & 2 & 3 \\
-            1 & 2 & 3 \\
-            \bottomrule
-        \end{tblr}
-    \end{table}
-\end{texcode}
-
-tblr 环境各列的对齐方式可以以键值对的方式在必选参数中设置，或者直接作为唯一必选参数（参考 tabularray 手册第 24 页）。列类型包括 c/l/r, t/b/m, X 等。c/l/r 为默认的三种对齐方式，t/b/m 指定单元格内容超过列宽时垂直方向的对齐方式， X 类型会自动调整列宽使全表宽度与页宽一致，X 类型列的水平、垂直对齐方式以类似 X[c] 的方式在 X 后的方括号内指定。X 类型后的方括号可以指定此列宽度与其他X类列宽度的相对大小，也可使用 \clist{wd=A}直接指定列宽。推荐使用 X 作为列类型。
-
-\begin{texcode}[]{}
-    \begin{tblr}{
-        colspec={|ll|X[c]|rr|},
-        cell{1}{1}={r=3,c=2}{r,m},
-        cell{1}{3}={r=2,c=3}{l,t},
-        cell{3}{Z}={}{red},
-        hline{4-6}={2pt,blue},
-    }
-        \hline
-        1-1 & 1-2 & 1-3 & 1-4 & 1-5 \\
-        \hline
-        2-1 & 2-2 & 2-3 & 2-4 & 2-5 \\
-        \hline
-        3-1 & 3-2 & MIDDLE & 3-4 & 3-5 \\
-        % \hline (4th)
-        4-1 & 4-2 & 4-3 & 4-4 & 4-5 \\
-        % \hline (5th)
-        5-1 & 5-2 & 5-3 & 5-4 & 5-5 \\
-        % \hline (6th)
-    \end{tblr}
-\end{texcode}
-
-tabularray 的优点在于格式和内容分离，使用更贴合人类习惯。单元格的合并，文字、背景、边框的样式都可以放在参数中设置。 \clist{cell{R}{C}={merge}{style}}用于设置单元格合并，其中 R,C 指定合并单元格左上角的位置，merge参数指定合并多少行多少列，style 调整合并后的单元格样式，其中 R,C 除了使用行号进行索引，可以使用 X,Y,Z 索引倒数第三、二、一行/列，可以使用 odd/even 选择 奇/偶列，还可以使用连字符(dash)选择区间，非常方便。
-
-\xsubsection{复杂表格}{Complicated tables}
-
-在三线表中可以加辅助线，以适应较复杂表格的需要，具体使用方法请自行阅读宏包：
-
-\begin{texcode}[]{}
-\begin{table}[H]
-  \centering
-  \caption{compare with other approachs}
-  \label{table:methodcompare}
-  \begin{tblr}{
-      colspec={*{7}{X[c]}},
-      cell{1}{1}={r=2}{c,m},
-      cell{1}{2,5}={c=3}{c,m},
-      hline{2,4,6}={1pt},
-      hline{1,3,Z}={1.5pt},
-      row{4,5}={rowsep=0pt},
-      row{Z}={m,font=\bfseries},
-  }
-    Model & trigger inditification & & & Event Extraction & & \\
-    & P(\%) & R(\%) & F1(\%) & P(\%) & R(\%) & F1(\%) \\
-    Baseline1 & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 \\
-    Baseline2  & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 \\
-    Baseline3  & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 \\
-    Our approach  & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 & 76.84 \\
-  \end{tblr}
-\end{table}
-\end{texcode}
-
-\xsubsection{长表格}{Long Tables}
-
-当表格过长时，使用\clist{longtblr}环境，此时不需要浮动体环境。在可选参数中需要设置\clist{theme=xjtu_std}，以调用预先设置好的续表样式，同时设置表格标题、label、脚注等，具体使用方法请自行阅读宏包。
-
-\begin{texcodeonly}[]{}
-    \begin{longtblr}[
-        theme = xjtu_std,
-        caption = {A Long Long Long Long Long Long Long Table },
-        entry = {Short Caption},
-        label = {tblr:test},
-        note{a} = {脚注},
-        note{$\dag$} = {还是脚注},
-        remark{Note} = {注释，即表格内没有标注符号的脚注},
-        remark{Source} = {还是注释},
-    ]{
-        colspec = {XX[c]X},
-        rowhead = 1, rowfoot = 0,
-    }
-    \toprule
-    Head & Head & Head \\
-    \midrule
-    Epsilon & Zeta\TblrNote{a} & Eta \\
-    Iota & Kappa\TblrNote{$\dag$} & Lambda \\
-    Nu & Xi & Omicron \\
-    \dots 
-    Foot & Foot & Foot \\
-    \bottomrule
-\end{texcodeonly}
-
-\begin{longtblr}[
-        theme = xjtu_std,
-        caption = {A Long Long Long Long Long Long Long Table },
-        entry = {Short Caption},
-        label = {tblr:test},
-        note{a} = {脚注},
-        note{$\dag$} = {还是脚注},
-        remark{Note} = {注释，即表格内没有标注符号的脚注},
-        remark{Source} = {还是注释},
-    ]{
-        colspec = {XX[c]X},
-        rowhead = 1, rowfoot = 0,
-    }
-    \toprule
-    Head & Head & Head \\
-    \midrule
-    Head & Head & Head \\
-    Alpha & Beta & Gamma \\
-    Epsilon & Zeta\TblrNote{a} & Eta \\
-    Iota & Kappa\TblrNote{$\dag$} & Lambda \\
-    Nu & Xi & Omicron \\
-    Rho & Sigma & Tau \\
-    Phi & Chi & Psi \\
-    %
-    % ......
-    Alpha & Beta & Gamma \\
-    Epsilon & Zeta & Eta \\
-    Iota & Kappa & Lambda \\
-    Nu & Xi & Omicron \\
-    Rho & Sigma & Tau \\
-    Phi & Chi & Psi \\
-    % Foot & Foot & Foot \\
-    Alpha & Beta & Gamma \\
-    \midrule
-    Epsilon & Zeta & Eta \\
-    Iota & Kappa & Lambda \\
-    Nu & Xi & Omicron \\
-    Rho & Sigma & Tau \\
-    Phi & Chi & Psi \\
-    Foot & Foot & Foot \\
-    Alpha & Beta & Gamma \\
-    Epsilon & Zeta & Eta \\
-    Iota & Kappa & Lambda \\
-    Nu & Xi & Omicron \\
-    Rho & Sigma & Tau \\
-    Phi & Chi & Psi \\
-    Foot & Foot & Foot \\
-    Alpha & Beta & Gamma \\
-    Epsilon & Zeta & Eta \\
-    Iota & Kappa & Lambda \\
-    Nu & Xi & Omicron \\
-    Rho & Sigma & Tau \\
-    Phi & Chi & Psi \\
-    Foot & Foot & Foot \\
-    \bottomrule
-\end{longtblr}

@@ -1,0 +1,48 @@
+\begin{tikzpicture}[font=\Large]
+    \node[switch] at (0, 0) (l0) {};
+    \node[switch, right=1 of l0] (l1) {};
+    \node[switch, right=1 of l1] (l2) {};
+    \node[switch, right=1 of l2] (l3) {};
+    \node[switch, above=2 of $(l0.center)!0.5!(l1.center)$] (s0) {};
+    \node[switch, above=2 of $(l2.center)!0.5!(l3.center)$] (s1) {};
+
+    \foreach \i in {0,1,2,3} {
+        \node[right=-0.1 of l\i] {$L_{\i}$};
+        \node[server, below  left=1 and -0.6 of l\i] (l\i-h0) {};
+        \node[server, below right=1 and -0.6 of l\i] (l\i-h1) {};
+        \path (l\i-h0) -- (l\i-h1) node[midway] {\bf...};
+    }
+    \foreach \i in {0,1} {
+        \node[right=-0.1 of s\i] {$S_{\i}$};
+    }
+    % network links
+    \begin{scope}[on background layer, every path/.style={gray, line width=1}]
+        \draw (l0.center) -- (s0.center);
+        \draw (l1.center) -- (s0.center);
+        \draw (l2.center) -- (s0.center);
+        \draw (l1.center) -- (s1.center);
+        \draw (l2.center) -- (s1.center);
+        \draw (l3.center) -- (s1.center);
+        \draw[dashed] (s0.center) -- (l3.center);
+        \draw[dashed] (s1.center) -- (l0.center);
+        \foreach \i in {0,1,2,3} {
+            \draw (l\i.center) -- (l\i-h0.center);
+            \draw (l\i.center) -- (l\i-h1.center);
+        }
+    \end{scope}
+    \begin{scope}[
+        every path/.style={decorate, decoration={brace,mirror,amplitude=6pt,raise=0.1ex}, very thick,},
+        every node/.style={xshift=-1ex, left, anchor=east}
+    ]
+        \foreach \i in {0,1,2,3} {
+            \draw (l\i-h0.south) -- (l\i-h1.south)
+                node[midway, below=0.2] {16 Hosts};
+        }
+    \end{scope}
+    \begin{scope}[on background layer, every path/.style={darkred, line width=3}]
+        \draw[->] (s0.center) -- (l1);
+        \draw[->] (l1.center) -- (s1);
+        \draw[->] (s1.center) -- (l2);
+        \draw[->] (l2.center) -- (s0);
+    \end{scope}
+\end{tikzpicture}

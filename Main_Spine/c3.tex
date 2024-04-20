@@ -1,69 +1,865 @@
 % !TeX root = ../main.tex
 
-\xchapter{算法与代码}{Algorithm and Code}
+% !TeX root = ../main.tex
 
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  学校并未对 算法 或 代码 的排版格式作出限定，因此可以自行修改。
-\end{tcolorbox}
+\xchapter{片上缓存系统净空缓存管理机制}{Headroom Management Scheme for On-chip Buffer System}
 
-\xsection{算法}{Algorithm}
+本章针对片上缓存系统现行净空缓存管理策略存在的低效性问题，分析其低效性的固有根源以及寻求更高效缓存管理策略的必要性，提出了一种动态共享净空缓存管理策略DSH，DSH动态地为拥塞队列分配净空缓存，同时在所有队列之间共享分配的净空缓存，通过统计复用的方式减少缓存静态预留量，提高缓存利用率。本章\ref{c3:s1:current buffer management scheme}节阐述片上缓存系统现行缓存管理策略SIH的具体机制。\ref{c3:s2:problem analysic}节分析SIH固有低效性的根本来源。\ref{c3:s3:dsh design}节提出DSH的设计目标、基本思想、主要挑战以及各个功能模块的具体机制。\ref{c3:s4:dsh analysis}节通过理论证明DSH的突发吸纳优势。\ref{c3:s5:dsh implementation}节详细描述DSH各个模块的具体工作方式和算法实现。\ref{c3:s6:dsh evaluation}节测试DSH的基本能力和大规模网络性能表现。\ref{c3:s7:brief summary}节对本章主要工作进行总结。
 
-考虑到实际使用需求，即长算法分段和注释功能，模板不再使用 \clist[columbiablue]{algorithm2e} 作为默认算法排版工具，改为调用 \clist[columbiablue]{algpseudocode}。注意，这两个宏包相互冲突。算法的具体编写方式请自行查阅宏包，即\clist{texdoc algpseudocode}。
+\xsection{现行缓存管理机制}{Current Buffer Management Scheme}
+\label{c3:s1:current buffer management scheme}
 
-\begin{texcode}[]{}
+片上缓存系统通常部署于交换机中，交换芯片中缓存管理单元（Memory Management Unit，MMU）负责缓存分配与管理，MMU为每个到达的数据包分配缓存空间。对于无损流量，MMU在入口侧为每个端口/队列分配缓存\cite{BCM88800TM,MellanoxRoCEConfig,CiscoNexus9300}。
+
+\xsubsection{缓存分配}{Buffer Allocation}
+现行净空缓存分配机制SIH的缓存分区结构同\ref{c2:buffer partition in pfc-enabled device}节所述，无损缓存池进一步划分为私有缓存、共享缓存和净空缓存三个分区。其中私有缓存和净空缓存的大小通常是显式静态配置的，剩余缓存空间作为共享缓存进行动态分配。
+
+\subsubsection{私有缓存}
+
+对于私有缓存，没有明确的规定应该如何配置其大小。交换机通常静态配置一个相对较小的空间\cite{SIGCOMM15DCQCN,SIGCOMM16RDMA}，以保证每个队列的最少可用缓存资源，如Arista 7050X3交换机中配置为16\%的缓存空间\cite{Arista7050X3}。
+
+\subsubsection{净空缓存}
+
+对于净空缓存，为了避免缓存溢出而丢包，交换机通常按照最坏情况下的净空缓存需求量静态预留。最坏情况下的净空缓存需求量计算方法如\ref{c2:s4:priority-based flow control}节所述，SIH为每个队列静态预留$\eta$大小的净空缓存，$\eta$由公式(\ref{eqn:c2:headroom calculation})计算得到。
+
+\subsubsection{共享缓存}
+
+对于共享缓存，该空间在所有队列之间共享，在队列需要时动态分配。MMU通过缓存管理机制保证共享缓存空间在所有队列之间公平和高效地共享，动态阈值（Dynamic Threshold, DT）是商用交换芯片中最常用的缓存管理机制\cite{SIGCOMM16RDMA,SIGCOMM19HPCC,broadcom2012smartbuffer,ExtremeBuffer,Arista7050X3,BCM88800TM,MellanoxDT,CiscoNexus9000ConfigGuide,BS19Yahoo}。
+
+DT用同一个阈值限制每个队列的长度，该阈值根据剩余缓存空间的大小动态地调整。具体地，用$T(t)$表示表示$t$时刻的阈值，$\omega_s^{i,j}(t)$表示$t$时刻端口$i$中队列$j$的共享缓存占用量，$B_s$表示共享缓存分区大小，DT阈值可以用下式表示：
+\begin{equation}
+  T(t)=\alpha \cdot (B_s - \sum_{i} \sum_{j} \omega_s^{i,j}(t))
+  \label{eqn:c3:dt threshold}
+\end{equation}
+
+其中$\alpha$是DT中的控制参数。DT蕴含的基本原理如下：当网络拥塞程度下降时，缓存占用总量减少即剩余缓存空间增加，DT阈值随之增大，则每个队列允许占用更多缓存从而提高缓存利用率；相反地，当网络拥塞程度增加时，缓存占用总量增加即剩余缓存空间减少，DT阈值随之减小，此时可以限制每个队列的缓存占用从而保证不同队列之间的公平性。
+
+\xsubsection{流量控制}{Flow Control}
+\label{c3:s1:ss2:flow control}
+
+在支持PFC的网络中，MMU不仅监测入口队列长度，而且对每个到来的数据包进行决策，同时根据共享缓存占用的情况和当前阈值向上游设备发送PFC暂停/恢复帧，PFC的工作机制可以通过图\ref{c3:s1:ss2:fig:pfc state transition}中的状态机描述。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{state_transition_pfc.pdf}
+      \subcaption{入口队列}
+      \label{c3:s1:ss2:fig:sub1:ingress}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{state_transition_pfc_out.pdf}
+      \subcaption{出口队列}
+      \label{c3:s1:ss2:fig:sub2:egress}
+  \end{subfigure}
+  \caption{PFC状态转换}
+  \label{c3:s1:ss2:fig:pfc state transition}
+\end{figure}
+
+在下游接收端，每个入口队列存在两种状态：
+
+1）ON：表示该入口队列处于非拥塞状态。在该状态下，上游端口允许向该队列发送对应类别的流量，此时接收到的报文将被存放到私有缓存或共享缓存分区中。
+
+2）OFF：表示该入口队列处于拥塞状态。在该状态下，上游端口对应类别的流量被暂停发送，此时接收到的报文将被存放于净空缓存分区中。
+
+在没有发生拥塞时，入口队列处于ON状态，当该队列的共享缓存占用超过阈值$X_{off}(t)$时，即$\omega_s^{i,j}(t) \geqslant X_{off}$，该队列转换到OFF状态，状态转换的同时需要向上游端口发送一个PFC暂停帧以暂停对应类别流量的发送。当拥塞消除且共享缓存占用降低到阈值$X_{on}(t)$以下时，即$\omega_s^{i,j}(t) \leqslant X_{on}$，则该入口队列转换到ON状态，同时向上游端口发送对应队列的PFC恢复帧以恢复被暂停流量的传输。
+
+出口队列的具体工作流程如\ref{c3:s1:ss2:fig:sub2:egress}所示，除状态转换中的状态与动作以外与入口队列类似，不再展开赘述。
+
+\xsubsection{MMU处理流程}{MMU Workflow}
+
+具体地，SIH中MMU接收到新到达的报文时，对于当前的缓存占用情况可能存在四种不同的处理方式：
+
+1）$q^{i,j}(t)<\phi$：MMU决策该报文存入私有缓存空间。$\phi$表示给每个队列预留的私有缓存空间大小。
+
+2）$\phi \leqslant q^{i,j}(t)< \phi+T(t)$：MMU决策该报文存入共享缓存空间。进一步地，如果入口队列当前处于OFF状态且$\omega_s^{i,j}(t) \leqslant X_{on}$，MMU向上游设备发送该队列的PFC恢复帧同时将队列状态转换为ON状态。
+
+3）$\phi+T(t) \leqslant q^{i,j}(t)<\phi +T(t)+\eta$：MMU决策该报文存入净空缓存空间。进一步地，如果入口队列当前处于ON状态，MMU向上游设备发送该队列的PFC暂停帧同时将该队列状态转换为OFF状态。
+
+4）$q^{i,j}(t) \geqslant \phi +T(t)+\eta$：净空缓存溢出，MMU决策丢弃该报文。
+
+
+\xsection{问题分析}{Problem Analysis}
+\label{c3:s2:problem analysic}
+
+本节提出现有净空缓存管理机制存在的净空缓存所占比重过大和缓存分配低效性问题，结合数据中心网络发展趋势分析上述问题存在的根源以及寻求更高效缓存分配策略的必要性。
+
+\xsubsection{净空缓存所占比重过大}{Headroom Occupies Considerable Memory}
+
+理想情况下大部分缓存空间应该作为共享缓存使用，从而可以在不触发PFC的情况下吸纳更多的突发流量。然而，现有的缓存分配机制预留大量缓存空间作为净空缓存，严重挤压正常流量可以使用的缓存空间，进而导致频繁的PFC触发。
+
+具体地，现有缓存分配机制独立地为每个入口队列保留一个静态大小的净空缓存空间。假设每个入口队列需要的净空缓存大小为$\eta$，则净空缓存预留总量为：
+\begin{equation}
+  h = N_p \cdot N_q \cdot \eta
+  \label{eqn:c3:total headroom}
+\end{equation}
+\noindent 其中$N_p$为入端口的数量，$N_q$为每个端口中的队列数。
+
+在该分配方式下，MMU为每个入口队列预留最坏情况下的净空缓存需求量$\eta$，静态净空缓存占据大量缓存空间。以Broadcom Trident2交换芯片为例，其缓存总量为12MB，共有32个40GbE端口（即$N_p=32$，$C=40Gbps$）。对于每个端口，PFC标准支持8个队列（即$N_q=8$），现假设$L_{MTU}=\text{1500B}$，$D_{prop}=1.5μs$，则MMU需要预留总量约5.33MB的缓存空间作为净空缓存，占总缓存容量的比重为44.4\%。
+
+随着数据中心网络链路带宽的不断增加，上述情况将会更加严重。在过去的十年时间里，数据中心网络的链路带宽已经从1Gbps增长到40Gbps再到100Gbps\cite{SIGCOMM19HPCC,SIGCOMM15Jupiter}，而且还在持续增长中。为了避免丢包，MMU需要预留更多净空缓存空间。然而，受限于芯片面积和开销，缓存容量无法以同等速度增加\cite{INFOCOM20BCC,ICNP21FlashPass,NSDI22BFC}。因此，净空缓存在缓存空间中占据的比重不断增加，严重挤压共享缓存空间。图\ref{c3:s2:ss1:fig:broadcom asic buffer size}显示了Broadcom厂商交换芯片缓存容量和净空缓存所占比重的发展趋势，在过去的十年里，缓存大小和交换带宽的比值的减少超过4倍，净空缓存所占比重增加56\%。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{buffer_size.pdf}
+  \caption{Broadcom交换芯片缓存发展趋势}
+  \label{c3:s2:ss1:fig:broadcom asic buffer size}
+\end{figure}
+
+共享缓存空间不足会造成PFC频繁触发，进而导致严重的性能损害，如头阻、拥塞传播和附带损害，严重情况下甚至可能导致网络死锁。本节通过在大规模网络仿真环境验证缓存不足导致的网络性能损害，基于ns-3搭建Spine-Leaf拓扑结构测试环境，其中Spine层16台交换机和16台Leaf层交换机全连接，每个Leaf层交换机连接16台主机。测试环境中拥塞控制算法采用PowerTCP\cite{NSDI22PowerTCP}，流大小通过web \ search负载\cite{SIGCOMM10DCTCP}模拟数据中心真实流量，流开始时间服从泊松分布，将网络负载配置为90\%。仿真结果如图\ref{c3:s2:ss1:fig:buffer size effect}所示，平均流完成时间（Flow Completion Time, FCT）随缓存容量减小而不断增大。14MB容量缓存下的平均FCT相对于30MB时增加78.1\%。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.6\textwidth]{buffer_size_effect.pdf}
+  \caption{缓存大小对流完成时间的影响}
+  \label{c3:s2:ss1:fig:buffer size effect}
+\end{figure}
+
+网络运营商通常通过限制优先级队列数量缓解上述问题\cite{SIGCOMM16RDMA}，然而，限制队列数量会损害不同网络服务之间的隔离性，导致拥塞更容易传播到整个网络，从而加重头阻问题。同时大量研究\cite{SIGCOMM18Homa,NSDI15PIAS,grosvenor2015queues,NSDI18AFQ,SIGCOMM18AuTO}表明，多服务队列可以极大改善网络性能。因此，限制队列数量无法从根本上解决该问题，而且会导致网络性能损害。
+
+\xsubsection{净空缓存分配低效性}{Current Headroom Allocation Scheme is Inefficient}
+
+在净空缓存所占比重不断增大的发展趋势下，现有的静态隔离净空缓存分配（Static and Isolated Headroom Allocation，SIH）机制具有显著的低效性，主要存在以下三个方面的原因：
+
+\subsubsection{不是所有队列都需要净空缓存}
+
+一个入口队列只有在其发生拥塞（即队列长度超过阈值$X_{off}$）时才需要去占用净空缓存。在现实的网络环境中，所有队列同时发生拥塞是几乎不可能的\cite{bai2023empowering}。然而，SIH为每个入口队列都静态地预留了一个最坏情况下的净空缓存需求量。因此，大部分净空缓存在大多数时间都是没有被利用的。
+
+\subsubsection{同端口不同队列共享上行链路带宽}
+
+同端口中的所有入口队列连接到同一个上行链路，所以这些队列中的流量天然共享上行链路带宽。当一个端口中某个类别的流量需要被PFC暂停时，如果其它类别也有流量到达，则理论上该类别流量的到达速度应当小于链路带宽$C$。因此，被暂停队列实际需要的净空缓存量通常小于最坏情况下的需求大小$\eta$。
+
+\subsubsection{上游设备并不总以线速度打流}
+
+在为入口队列分配净空缓存时，SIH假设在暂停帧生效前上游设备总是以线速度发送流量。然而，上游设备因为队列为空而断流。因此，上游设备的发送速度可能小于链路带宽，此时净空缓存存在超量分配。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\linewidth]{headroom_utilization.pdf}
+  \caption{净空缓存利用率分布}
+  \label{c3:s2:ss1:fig:headroom utilization}
+\end{figure}
+
+在大规模ns-3网络仿真环境中验证SIH的低效性，实验环境除拥塞控制算法外同上文配置，拥塞控制算法采用DCQCN\cite{SIGCOMM15DCQCN}。仿真结果如图\ref{c3:s2:ss1:fig:headroom utilization}所示，净空缓存利用率的极大值分布显示，SIH的缓存利用率的中位数为4.96\%，99分位数为25.33\%，该结果表明大部分净空缓存在大多数情况下没有被有效利用。
+
+SIH的低效性是固有的且无法通过简单地调整净空缓存大小来避免。其原因在于SIH需要按照最坏情况预留净空缓存空间，以保证在任何情况下都不会发生丢包。因此需要寻求一个新的缓存分配机制从根本上提高净空缓存的利用效率。
+
+\xsection{DSH机制设计}{DSH Design}
+\label{c3:s3:dsh design}
+
+相对于SIH静态隔离的净空缓存分配方式，本文提出了一种动态共享净空缓存分配机制DSH，DSH可以在保证无丢包的基础上高效分配净空缓存。本节主要阐述DSH的基本思想、设计细节及其在交换芯片上的易实现性。
+
+\xsubsection{设计目标}{Design Goals}
+
+考虑到SIH分配方式固有的低效性，简单地减少净空缓存静态预留量会给无损网络带来丢包风险。因此，需要在保证无丢包的基础上设计一个更高效的净空缓存分配和管理机制，该机制需要同时满足以下特性：
+
+\subsubsection{保证无损传输}
+
+RDMA需要无损网络环境保证其性能，丢包引起的重传会导致RDMA性能大幅下降，造成吞吐率降低、完成时间增加，错过应用程序截止时间等问题。因此，避免因缓存溢出而丢包是无损网络对于缓存管理的基本要求，减少净空缓存预留量不能以引入丢包风险为代价。
+
+\subsubsection{资源高效利用}
+
+容量受限的片上缓存空间对于高带宽交换芯片是稀缺资源。实现无损传输不可避免地需要预留一部分缓存空间作为净空缓存，高效的缓存分配和管理机制应该尽可能保证大部分缓存空间在大多数时间内可用，而不应该空闲大量缓存空间仅为应对极少情况下发生的流量场景。
+
+\subsubsection{足够突发容忍}
+
+突发吸纳是缓存最核心的作用之一。突发流量在缓存中的主要表现为短时间内的队列迅速积累，而端到端拥塞控制机制至少需要一个RTT的时间才能做出拥塞响应，如果没有足够缓存空间容纳积累的突发流量则需要触发PFC来避免丢包。在常见的Incast场景下，PFC需要同时暂停多个上游设备，从而更容易导致拥塞传播。因此，缓存管理机制应该提供足够的的突发吸纳能力，以应对数据中心网络中常见的突发流量。
+
+\subsubsection{避免PFC触发}
+
+PFC本身会对网络性能造成一定的损害，其基于队列级别的粗粒度流量控制可能导致头阻问题，造成某条流的性能受损，在大规模网络中还可能存在PFC传播甚至PFC死锁等问题，频繁触发PFC会损害网络中流量的吞吐率和时延等性能。因此，尽可能地避免PFC触发是缓存管理的一个重要目标。
+
+\xsubsection{基本思想}{Key Ideas}
+\label{c3:s3:ss2:key ideas}
+
+DSH在设计上主要遵循动态共享的基本思想，在保证无丢包的基础上实现高效净空缓存分配：
+
+\subsubsection{DSH主动预留少量缓存作为保底净空缓存作为无损传输保证。}
+
+同一端口下的不同入口队列共享其上行链路带宽，所以只需要为每个端口预留$\eta$大小的净空缓存即可实现无丢包，因此，为每个入口队列都分配$\eta$大小的净空缓存的方式是没有必要的。当一个端口开始占用保底净空缓存时，整个上游端口中所有队列都应该被PFC暂停发送，以此减少净空缓存的静态预留量。暂停整个端口可能损害不同类别流量之间的隔离性，所以需要额外的机制保证其非必要不触发。
+
+\subsubsection{DSH根据队列拥塞状态动态分配净空缓存，使其在队列之间共享。}
+
+当且仅当一个队列发生拥塞时才需要占用净空缓存空间。因此，DSH仅在一个队列拥塞时开始尝试为其分配净空缓存，而不会为非拥塞队列分配，从而可以在少量队列拥塞的情况下释放大量缓存空间用于吸纳突发流量。此外，当某个队列分配到的净空缓存没有被完全占用的情况下，DSH可以使其剩余空间为其它队列所共享，通过统计复用的方式提高净空缓存利用效率。
+
+\xsubsection{主要挑战}{Main Challenges}
+
+实现\ref{c3:s3:ss2:key ideas}节提出的基本思想首先需要解决其引入的一些问题。一方面，为了在保证无损传输的基础上减少净空缓存静态预留量，DSH需要在队列级别流量控制的基础上引入端口级别流量控制。端口粒度的暂停会降低同一端口中不同队列之间的隔离性；另一方面，以动态方式分配净空缓存及其在不同队列之间的共享可能导致不公平甚至饥饿问题。因此，DSH在具体设计时主要面临以下三个挑战：
+
+\subsubsection{如何尽可能避免触发端口级别流量控制}
+
+理想情况下，端口级别流控应该仅作为队列级别流控的保底措施。绝大多数情况的网络环境下，一个端口中同时只有一个或者少数几个队列处于拥塞状态，所有队列或者大多数队列同时拥塞的情况极少发生。基于以上认识，对于端口中少数队列拥塞的情况，DSH需要实现仅触发队列级别流量控制避免丢包而无需触发端口级别流量控制；对于大多数队列拥塞的极端情况，DSH可以在必要时触发端口级别流量控制，此时暂停整个端口相对于暂停所有拥塞队列差别不大。
+
+\subsubsection{如何保证队列暂停后的净空缓存占用}
+
+DSH不再为每个队列静态预留净空缓存空间，而是仅为每个端口预留用于端口级别流量控制。这意味着在触发队列级别流量控制后可能无法保证足够的净空缓存分配，如果净空缓存分配不足将会进一步触发端口级别流量控制。不合理的分配方式可能会增加端口级别流量控制触发的概率，导致队列之间的隔离性受损。DSH尝试在共享缓存分配足够的净空缓存，首先保证在触发队列暂停时刻该队列仍有足够的可用共享缓存空间，在暂停帧生效之前如果该队列的共享缓存空间无法满足净空缓存需求则进一步尝试从其它队列空闲共享缓存中共享，尽可能保证队列的净空缓存分配。
+
+\subsubsection{如何限制每个端口的共享缓存空间}
+
+限制每个端口的共享缓存空间即确定端口级别流控的触发条件。通过动态方式限制端口的共享净空缓存占用需要做到充分但不过度：一方面，分配空间过小容易导致端口级别流控的频繁触发；另一方面，分配空间过大可能造成其它非拥塞端口的缓存饥饿。DSH需要在设计时权衡避免端口级别流量控制和不同端口之间的公平性。考虑到上述要求与队列之间的共享缓存分配要求基本一致，DSH通过基于端口缓存占用的动态阈值限制每个端口的共享缓存空间，分配和管理逻辑与队列保持统一，同时将动态阈值的公平性继承到端口级别。
+
+\xsubsection{具体机制}{DSH Mechanisms}
+\label{c3:s3:ss4:dsh mechanisms}
+
+本节通过设计DSH的具体机制实现\ref{c3:s3:ss2:key ideas}节的基本思想，包括缓存分区结构、缓存分配与管理、流量控制以及MMU处理流程。
+
+\subsubsection{缓存结构}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{buffer_partition_dsh.pdf}
+  \caption{DSH缓存分区}
+  \label{c3:s3:ss4:fig:dsh buffer partition}
+\end{figure}
+
+
+DSH的缓存组织结构如图\ref{c3:s3:ss4:fig:dsh buffer partition}所示，在传统缓存分区的基础上，DSH进一步将净空缓存划分为两部分：共享净空缓存和保底净空缓存。保底净空缓存为每个端口静态预留，作为无丢包保证；共享净空缓存则是在队列需要时动态分配的，同时可以在不同入口队列之间共享。
+
+DSH没有将共享净空缓存单独分区，而是将其作为共享缓存的一部分。这样设计有两个好处：一是可以简化DSH在交换芯片中的实现，缓存分区可以和现有交换芯片保持一致；二是可以提高缓存利用率，从共享缓存分区分配共享净空缓存可以提高统计复用的程度，从而提高缓存可用率。
+
+\subsubsection{缓存分配}
+
+DSH对于私有缓存分区的管理方式与SIH相同。对于保底净空缓存，DSH同样以静态预留的方式为每个端口分配，假设有$N_p$个端口，需要的保底 净空缓存的大小为：
+\begin{equation}
+  B_i = N_p \cdot \eta
+  \label{eqn:c3:total reserved headroom in dsh}
+\end{equation}
+
+\noindent 其中$\eta$由公式(\ref{eqn:c2:headroom calculation})计算得到。
+
+私有缓存和保底净空缓存之外的缓存空间作为共享缓存，共享缓存在入口队列之间动态分配。DSH使用阈值$T(t)$限制每个入口队列的共享缓存占用（包括净空缓存和非净空缓存）。与DT相同，DSH同样根据剩余缓存大小动态调整阈值，从而保证在易于实现前提下实现自适应性和高效性。
+
+DSH中的$T(t)$与现有交换芯片中的计算方式相同，即公式(\ref{eqn:c3:dt threshold})所示，唯一的区别在于共享缓存占用的总量
+$ω_s^{i,j}(t)$为净空缓存和非净空缓存占用的总和。因此，DSH的阈值计算易于实现，不需要对当前的硬件逻辑进行修改。
+
+\subsubsection{流量控制}
+
+DSH通过结合两种级别的流量控制机制来保证无丢包：队列级别流量控制和端口级别流量控制。
+
+队列级别流量控制和PFC机制类似，当一个入口队列的共享缓存占用总量超过$X_{qoff}$阈值时，MMU向上游端口发送对应队列的PFC暂停帧，上游设备收到该暂停帧后将暂停发送该类别的流量。存在的区别在于$X_{qoff}$阈值的设置，DSH中将其设置为：
+\begin{equation}
+  X_{qoff}(t) = T(t) - \eta
+  \label{eqn:c3:total reserved headroom in dsh}
+\end{equation}
+
+其中的蕴含的原理包括两方面：一方面，当一个入口队列变得拥塞时，DSH首先尝试为其预留足够的净空缓存，即$\eta$大小）；另一方面，当一个入口队列拥塞程度下降时，未使用的缓存可以被其它拥塞队列占用。具体地，当一个入口队列的共享缓存占用小于阈值$T(t)$时，未占用部分空间可以作为空闲缓存空间用于计算$T(t)$，$T(t)$增大即表示其它拥塞队列可以占用更多的缓存空间。综上，DSH只有在一个队列真正拥塞时才为其预留足够的净空缓存。
+
+由于共享净空缓存是以动态方式分配而不是静态预留的，DSH无法保证每个队列发生拥塞时都能分配到$\eta$大小的净空缓存。因此，DSH引入端口级别流量控制保证在任何情况下都不会发生丢包。
+
+端口级别流量控制会在一个端口中所有队列的共享缓存占用超过$X_{poff}$阈值时触发。当端口级别流量控制触发时，MMU会向上游端口发送一个端口级别暂停帧（即所有优先级计时器均被设置的PFC暂停帧）。上游端口接收到该暂停帧后暂停向下游端口发送所有优先级类别的流量。
+$X_{poff}$由下式计算得到：
+\begin{equation}
+  X_{poff}(t) = N_q \times T(t)
+  \label{eqn:c3:port pause threshold}
+\end{equation}
+
+DSH为每个入口队列分配$T(t)$大小的共享缓存，其中包括净空缓存和非净空缓存两部分。一个端口下所有入口队列分配到的共享缓存总和即为$N_q \times T(t)$。其中蕴含的原理即为DSH允许一个入端口中的所有入口队列共享其分配到的所有缓存空间。具体地，通过限制端口级别的缓存占用可以使一个拥塞队列占用同一个端口中其它队列的净空缓存空间。由于去往同端口不同队列的流量天然共享其上行链路带宽，端口级别的缓存共享可以同时保证高效性和公平性。综上，DSH可以在高效利用共享缓存的同时保证端口级别流量控制不易触发。
+
+\subsubsection{MMU处理流程}
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{state_transition_pfc_in_queue.pdf}
+      \subcaption{队列级别流量控制}
+      \label{c3:s3:ss4:fig:sub1:dsh ingress queue state transition}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{state_transition_pfc_in_port.pdf}
+      \subcaption{端口级别流量控制}
+      \label{c3:s3:ss4:fig:sub2:dsh ingress port state transition}
+  \end{subfigure}
+  \caption{DSH入口侧流量控制状态机}
+  \label{c3:s3:ss4:fig:dsh ingress state transition}
+\end{figure}
+
+综合以上机制，DSH的具体工作流程可以用图\ref{c3:s3:ss4:fig:dsh ingress state transition}中的状态机描述。在入口侧，每个入口队列存在两种队列状态：
+
+（1）QON：表示该入口队列处于非拥塞状态。在该状态下，上游端口允许向该队列发送对应类别的流量，收到的数据包将被存放到私有缓存空间或共享缓存空间。
+
+（2）QOFF：表示该入口队列处于拥塞状态。在该状态下，上游端口对应类别的流量被暂停发送，收到的数据包将被存放到共享净空缓存空间。
+
+在没有发生拥塞时，入口队列处于QON状态，当该队列的共享缓存占用超过阈值$X_{qoff}(t)$时，该队列转换到QOFF状态，状态转换的同时需要向上游端口发送对应队列级别的暂停帧以暂停相应类别流量的发送。如果拥塞消除并且共享缓存占用降低到阈值$X_{qon}(t)$以下，则该入口队列转换到QON状态，同时向上游端口发送对应队列级别恢复帧以恢复被暂停流量的传输。
+
+此外，入端口同样存在两种端口级别的状态：
+
+\setcounter{paragraph}{0}
+（1）PON：表示该入端口处于非拥塞状态。在该状态下，上游端口允许向其发送任意类别的流量（对应类别没有被队列级别流量控制暂停前提下），此时收到的数据包将会被存放到私有缓存或者共享缓存分区中。
+
+（2）POFF：表示该入端口处于拥塞状态。在该状态下，上游端口所有类别的流量均被暂停发送，此时收到的数据包将会被存放到保底 净空缓存中。
+
+在没有发生拥塞时，端口处于PON状态，当该入端口的缓存占用超过阈值$X_{poff}(t)$时，其状态转换为POFF，同时向上游端口发送一个端口级别暂停帧以暂停所有类别流量的发送。当拥塞消除并且该端口的缓存占用降低到$X_{pon}(t)$以下时，该端口转换到PON状态，同时向上游端口发送一个端口级别恢复帧恢复流量发送。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{state_transition_pfc_out_queue.pdf}
+      \subcaption{队列级别流量控制}
+      \label{c3:s3:ss4:fig:sub1:dsh egress queue state transition}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{state_transition_pfc_out_port.pdf}
+      \subcaption{端口级别流量控制}
+      \label{c3:s3:ss4:fig:sub2:dsh egress port state transition}
+  \end{subfigure}
+  \caption{DSH出口侧流量控制状态机}
+  \label{c3:s3:ss4:fig:dsh egress flow control}
+\end{figure}
+
+
+出口侧的具体工作流程如图\ref{c3:s3:ss4:fig:dsh egress flow control}所示，除状态转换中的状态与动作以外与入口侧类似，此处不再展开赘述。
+
+\xsection{DSH原理分析}{DSH Analysis}
+\label{c3:s4:dsh analysis}
+
+本节在理论上分析DSH的突发流量吸纳能力，通过理论证明DSH相对于SIH的性能优势。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{qlen_evolution_1.pdf}
+      \subcaption{$R \leqslant \frac{1 - \alpha N}{\alpha M} + 1$}
+      \label{c3:s4:ss2:fig:sub1:dsh qlen evaluation 1}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[height=5.3cm]{qlen_evolution_2.pdf}
+      \subcaption{$R > \frac{1 - \alpha N}{\alpha M} + 1$}
+      \label{c3:s4:ss2:fig:sub2:dsh qlen evaluation 2}
+  \end{subfigure}
+  \caption{队列长度和阈值变化过程}
+  \label{c3:s4:ss2:fig:dsh qlen evaluation}
+\end{figure}
+
+\xsubsection{假设条件}{Assumptions}
+
+考虑如下场景\cite{TON98DT}：$t_0$时刻（$t_0 \ll 0$），交换机中$N$个入口队列$Q_0 \sim Q_{N-1}$变为拥塞状态。在$t=0$时，另外$M$个空入口队列$Q_N \sim Q_{N+M-1}$同时开始传输突发流量。上述$N+M$个队列中的流量以平滑负载大小为$R$的速度到达，其中$R$为相对流量离开速度标准化后的值且$R>1$。为了简化分析过程，现做出以下假设：
+
+1）缓存中没有预留私有缓存空间，即$B_p=0$。
+
+2）PFC暂停帧生效的时延无限接近于0。
+
+3）PFC恢复阈值无限接近但小于PFC暂停阈值的大小，即对于任意$\varepsilon > 0$，$0<X_{qon} - X_{qoff}<\varepsilon$。
+
+基于以上假设，DSH和SIH的突发吸纳能力可以分别由定理\ref{thm:c3:burst absorption for DSH}和定理\ref{thm:c3:burst absorption for SIH}表征。
+
+\xsubsection{DSH突发吸纳能力分析}{Analysis of DSH Burst Absorption Ability}
+
+\begin{theorem}
+  对于入口队列$Q_N \sim Q_{N+M-1}$，DSH当且仅当满足下式时可以避免触发PFC：
+  \label{thm:c3:burst absorption for DSH}
+  \begin{equation}
+    d < 
+    \begin{cases}
+      \frac{\alpha(B-N_p\cdot \eta)-\eta}{[1+\alpha(N+M)](R-1)}, & R\leqslant\frac{1-\alpha N}{\alpha M}+1 \\
+      \frac{\alpha(B-N_p\cdot \eta)-\eta}{(1+\alpha N)[(1+\alpha M)(R-1)-\alpha N]}, & R>\frac{1-\alpha N}{\alpha M}+1 \\
+    \end{cases}
+    \label{eqn:c3:port pause threshold}
+  \end{equation}
+  
+  \noindent{其中$d$表示突发流量的持续时间。}  
+\end{theorem}
+
+\begin{proof}
+  在$t=0$时刻，入口队列$Q_0 \sim Q_{N-1}$的队列长度$q_0(t) \sim q_{N-1}(t)$等于$X_{qoff}$阈值的大小，即：
+  \begin{equation}
+    q_i(0)=X_{qoff}(0)=T(0)-\eta, \quad 0 \leqslant i < N
+    \label{eqn:c3:length of queue i at time 0}
+  \end{equation}
+
+  其中阈值$T(t)$由下式计算得到：
+  \begin{equation}
+    T(t)=\alpha \cdot (B_s - \sum_{i}q_i(t))
+    \label{eqn:c3:threshold of pfc pause}
+  \end{equation} 
+  
+  将公式(\ref{eqn:c3:length of queue i at time 0})代入公式(\ref{eqn:c3:threshold of pfc pause})得到：
+  \begin{equation}
+    \begin{cases}
+      T(0)=\frac{\alpha(B_s+N \eta)}{1+\alpha N} \\
+      q_i(0)=T(0)-\eta=\frac{\alpha B_s-\eta}{1+\alpha N} \\
+    \end{cases}
+    \label{eqn:c3:substitute result}
+  \end{equation}
+
+  在$t=0^+$时，$M$个入口队列开始活跃。这些队列的队列长度开始增大，同时$T(t)$开始减小。相应地，$X_{qoff}$阈值也会随之减小，进而导致$q_0(t) \sim q_{N-1}(t)$减小。令$T'(t)$表示$T(t)$的导数，$q'_i(t)$表示$q_i(t)$的导数，可以得到下式：
+  \begin{equation}
+    T'(0^+)=-\alpha \cdot \sum_{i}q'_i(0^+)
+    \label{eqn:c3:derivative of T}
+  \end{equation}
+  \begin{equation}
+    q'_i(0^+)=
+      \begin{cases}
+        \max (T'(0),-1), & 0 \leqslant i < N \\
+        R-1, & N \leqslant i < N+M \\
+      \end{cases}
+    \label{eqn:c3:derivative of queue length}
+  \end{equation}  
+
+  将公式(\ref{eqn:c3:derivative of queue length})代入公式(\ref{eqn:c3:derivative of T})可得：
+  \begin{equation}
+    T'(0^+)=-\alpha \cdot N \cdot \max(T'(0),-1)-\alpha \cdot M
+    \cdot (R-1)
+  \end{equation}
+
+  此时可能出现两种情况：
+
+  \setcounter{subsubsection}{0}
+  \subsubsection{$R \leqslant \frac{1-\alpha N}{\alpha M} + 1$}
+
+  此时，$T'(0^+) \geqslant -1$，因此，$q_i(t)$（$0 \leqslant i < N$）与$X_{qoff}$阈值以同等速率减小。队列长度变化曲线如图\ref{c3:s4:ss2:fig:sub1:dsh qlen evaluation 1}所示，$q_i(t)$（$N \leqslant i < N + M - 1$）将会保持继续增长。在这段时间内，$T(t)$和$q_i(t)$可由下式计算得到：
+  \begin{equation}
+    T(t)=\frac{\alpha}{1+\alpha N}[B_s+N\eta-M(R-1)t]
+  \end{equation}
+  \begin{equation}
+    q_i(t)=
+    \begin{cases}
+      \frac{\alpha B_s-\eta-\alpha M(R-1)t}{1+\alpha N}, 
+      & 0 \leqslant i < N \\
+      (R-1)t, & N \leqslant i < N + M -1 \\
+    \end{cases}
+  \end{equation}  
+
+  直到$t=t_1$时，$q_i(t)$（$N \leqslant i < N + M - 1$）增长到阈值$X_{qoff}$的大小，即$q_i(t_1)=T(t_1)-\eta$，从中解出$t_1$，可得：
+  \begin{equation}
+    t_1=\frac{\alpha B_s - \eta}{[1+\alpha (N+M)](R-1)}
+  \end{equation}
+
+  在$t=t_1$时刻，队列$Q_N \sim Q_{N+M-1}$开始暂停上游设备。因此，当且仅当$d<t_1$时DSH可以避免触发PFC暂停帧，其中$d$表示队列$Q_N \sim Q_{N+M-1}$中突发流量的持续时间。
+
+  \subsubsection{$R>\frac{1-\alpha N}{\alpha M}+1$}
+
+  在这种情况下，$T'(0^+)<-1$。因此，$q_i(t)(0 \leqslant i < N)$的减小速度小于阈值$X_{qoff}$减小速度。队列长度的变化曲线如图\ref{c3:s4:ss2:fig:sub2:dsh qlen evaluation 2}所示。在$[0,t_2]$时间内，$T(t)$和$q_i(t)$可以由下式得到：
+  \begin{equation}
+    T(t)=\frac{\alpha(B_s+N\eta)}{1+\alpha N}-[\alpha M(R-1)-\alpha N]t
+  \end{equation}
+  \begin{equation}
+    q_i(t)=
+    \begin{cases}
+      \frac{\alpha B_s-\eta}{1+\alpha N}-t, 
+      & 0 \leqslant i < N \\
+      (R-1)t, & N \leqslant i < N + M -1 \\
+    \end{cases}
+  \end{equation}
+
+  直到$t=t_2$时刻，$q_i(t)$（$N \leqslant i < N + M - 1$）增长到$X_{qoff}$阈值，即$q_i(t_2)=T(t_2)-\eta$。从中解出$t_2$，可得：
+  \begin{equation}
+    t_2=\frac{\alpha B_s - \eta}{(1+\alpha N)[(1+\alpha M)(R-1)-\alpha N]}
+  \end{equation}
+
+  在$t=t_2$时刻，队列$Q_N \sim Q_{N+M-1}$开始暂停上游设备。因此，当且仅当$d<t_2$时DSH可以避免触发PFC暂停帧，其中$d$表示队列$Q_N \sim Q_{N+M-1}$中突发流量的持续时间。
+
+  证毕。
+\end{proof}
+
+\xsubsection{SIH突发吸纳能力分析}{Analysis of SIH Burst Absorption Ability}
+
+\begin{theorem}
+  对于入口队列$Q_N \sim Q_{N+M-1}$，SIH当且仅当满足下式时可以避免触发PFC：
+  \label{thm:c3:burst absorption for SIH}  
+  \begin{equation}
+    d < 
+    \begin{cases}
+      \frac{\alpha(B-N_p\cdot \eta)}{[1+\alpha(N+M)](R-1)}, & R\leqslant\frac{1-\alpha N}{\alpha M}+1 \\
+      \frac{\alpha(B-N_p\cdot \eta)}{(1+\alpha N)[(1+\alpha M)(R-1)-\alpha N]}, & R>\frac{1-\alpha N}{\alpha M}+1 \\
+    \end{cases}
+    \label{eqn:c3:sih burst obsorption}
+  \end{equation}
+  
+  \noindent{其中$d$表示突发流量的持续时间。}
+\end{theorem}
+
+\begin{proof}
+  SIH机制下的队列长度变化过程与图\ref{c3:s4:ss2:fig:dsh qlen evaluation}相同，差别仅SIH的$X_{off}$阈值计算，即$X_{off} = T(t)$。因此，可以直接令$\eta = 0$解出$t_1$和$t_2$，结果如下式：
+  \begin{equation}
+    \begin{cases}
+      t_1=\frac{\alpha B_s}{[1+\alpha (N+M)](R-1)} \\
+      t_2=\frac{\alpha B_s}{(1+\alpha N)[(1+\alpha M)(R-1)-\alpha N]} \\
+    \end{cases}  
+    \label{c3:s4:ss2:eqn:t1 and t2 in sih}
+  \end{equation}
+
+  因此，当且仅当突发流量持续时间$d$满足下式时SIH可以避免触发PFC：
+  \begin{equation}
+    d < 
+    \begin{cases}
+      \frac{\alpha B_s}{[1+\alpha(N+M)](R-1)}, & R\leqslant\frac{1-\alpha N}{\alpha M}+1 \\
+      \frac{\alpha B_s}{(1+\alpha N)[(1+\alpha M)(R-1)-\alpha N]}, & R>\frac{1-\alpha N}{\alpha M}+1 \\
+    \end{cases}
+    \label{eqn:c3:sih:port pause threshold}
+  \end{equation}
+
+  证毕。
+\end{proof}
+
+\xsubsection{总结}{Summary}
+
+定理\ref{thm:c3:burst absorption for DSH}和定理\ref{thm:c3:burst absorption for SIH}证明：相对于SIH，DSH对于队列数量具有更好的扩展性。具体地，DSH的突发吸纳能力和每个端口的队列数量（即$N_q$）不相关，而SIH的突发吸纳能力和每个端口的队列数量呈负相关关系。这表明DSH可以支持尽可能多的队列数，从而可以提高其在不同网络服务之间的隔离性，同时可以支持部署更多先进的流量优化系统（如PIAS\cite{NSDI15PIAS}和Homa\cite{SIGCOMM18Homa}等）。
+
+
+\xsection{DSH具体实现}{DSH Implementation}
+\label{c3:s5:dsh implementation}
+
+本节讨论DSH在现行交换芯片上的可行性以及其算法实现。DSH不需要对现行缓存结构进行任何修改，只需要对流量控制机制进行适度修改即可实现。
+
+\xsubsection{队列级别流量控制}{Queue-level Flow Control}
+
+如\ref{c3:s1:current buffer management scheme}节所述，现行缓存管理机制在队列长度增长到$T(t)$时触发PFC暂停帧，在队列长度降低到$T(t)-\delta$时触发PFC恢复帧，其中$\delta$为一个可配置参数。DSH中的唯一区别在于PFC触发暂停帧和恢复帧的阈值大小分别为$T(t)-\eta$和$T(t)-\eta-\delta_q$，因此只需要修改PFC控制帧的触发状态即可。具体地，交换芯片需要增加两个减法器，一个以$T(t)$和$\eta$作为输入用于计算阈值$X_{qoff}$，另一个以$X_{qoff}$和$δ_q$作为输入用于计算$X_{qon}$。
+
+\xsubsection{端口级别流量控制}{Port-level Flow Control}
+
+目前，市场上已经有很多交换芯片基于端口的缓存占用端口级别流量控制进行了支持\cite{BCM88800TM,CiscoNexus9300IB}，因此DSH同样只需要修改端口级别控制帧的触发状态，其中暂停帧触发阈值为$N_q \times T(t)$，需要为其增加一个乘法器，通常情况下$N_q$的大小为2的幂值，这时只需要一个移位寄存器即可；恢复帧触发阈值大小为$X_{poff}-\delta_p$，$\delta_p$是一个可配置参数，因此需要引入一个减法器。
+
+\xsubsection{两种流量控制整合}{Consolidating Two Kinds of Flow Controls}
+
+对于队列级别和端口级别流量控制的整合，下游入口侧两种流量控制可以独立地工作，所以二者的整合不需要额外的修改；上游出口侧只需要修改暂停传输的状态即可完成整合，具体地，当一个出口队列处于QOFF状态或者其所在出端口处于POFF状态时都会暂停流量传输。因此交换芯片需要为每个出口队列维护一个状态，同时为每个出端口维护一个状态，这样每个队列的暂停状态通过一个或门即可实现。
+
+\xsubsection{交换芯片资源增量}{Overall Resource Increments to Switch ASIC}
+
+基于以上分析，DSH在交换芯片上引入的资源开销是可以接受的，具体原因包括以下几个方面：
+
+1）DSH不需要额外的寄存器。每个队列和端口的缓存占用信息可以在现有的交换芯片中直接获得。
+
+2）DSH不会触及内存分配和管理机制。DSH的缓存分区结构（图\ref{c3:s3:ss4:fig:dsh buffer partition}）与现有交换芯片（图\ref{fig:c2:buffer partition}）保持一致，而且DSH在没有改变非净空缓存部分的缓存分配和管理机制的基础上增加额外的流控机制即可实现对净空缓存的分配。因此，DSH的实现不需要修改现有的内存分配和管理机制。
+
+3）DSH只需要一些简单易实现的比较和算数运算操作即可实现PFC触发的状态维护。DSH维护的所有状态都是基于缓存占用和阈值比较，在此基础上DSH只需要引入一些额外的比较和简单算数运算操作。
+
+\xsubsection{详细算法实现}{DSH Algorithm}
+DSH在算法实现上主要包括两个模块：入队模块和出队模块。入队模块负责报文入队之前的决策以及流量控制暂停帧触发，出队模块负责报文出队后的缓存释放以及流量控制恢复帧触发。
+
+\subsubsection{入队模块}
+入队模块算法在报文入队前触发，首先对报文进行决策，根据缓存占用决定其能否进入缓存、缓存位置以及流量控制暂停帧触发，然后根据决策结果更新对应分区的缓存占用计数器。
+
 \begin{algorithm}[H]
-  \caption{How to write algorithms}
-  \begin{algorithmic}[1]
-      \State \textbf{Input:} this text
-      \State \textbf{Output:} how to write algorithm with \LaTeX2e \Comment{Just a comment}
-      \State initialization
-      \While{not at end of this document}
-        \State read current
-        \If{understand}
-          \State go to next section
-          \State current section becomes this one
-        \Else{$k\geq k^\text{max}$}
-          \State go back to the beginning of current section
-        \EndIf
-      \EndWhile
-  \end{algorithmic}
+  \small
+  \SetAlCapFnt{\small}
+  \SetAlCapNameFnt{\small}
+  \Input{待处理报文$packet$}
+  \Output{存储位置决策$decision$}
+
+  \SetAlgoVlined
+
+  \Comment{获取报文的大小，入端口和队列}
+  $pkt\_size \leftarrow packet.size$\;
+  $pid \leftarrow \text{GetIngressPort}(packet)$\;
+  $qid \leftarrow \text{GetQueueIndex}(packet)$\;
+  \Comment{判断端口是否处于暂停状态}
+  \If{$port\_status[pid]=OFF$}{
+    \Comment{判断净空缓存是否溢出}
+    \eIf{$headroom\_left[pid] < pkt\_size$}{
+      $decision \leftarrow DROP$\;
+    }{
+      $decision \leftarrow TO\_HEADROOM$\;
+    }
+  }
+  \Comment{判断私有缓存空间是否可以容纳}
+  \ElseIf{$pkt\_size+ingress\_bytes[pid][qid]<\varphi$}{
+    $decision \leftarrow TO\_RESERVED$\;
+  }
+  \Comment{判断是否需要触发端口级别流控}
+  \ElseIf{$pkt\_size+port\_shared\_bytes[pid] \geqslant N_q \times T(t)$}{
+    $port\_status[pid] \leftarrow OFF$\;
+    $decision \leftarrow TO\_HEADROOM$\;
+    向上游设备发送$pid$的端口暂停帧\;
+  }
+  \Comment{判断是否需要触发队列级别流控}
+  \ElseIf{$pkt\_size+ingress\_bytes[pid][qid]\geqslant\varphi+T(t)-\eta$}{
+    $decision \leftarrow TO\_SHARED$\;
+    $queue\_status[pid][qid] \leftarrow OFF$\;
+    向上游设备发送$qid$的队列暂停帧\;
+  }
+  \Else{
+    $decision \leftarrow TO\_SHARED$
+  }
+  根据决策结果更新对应的计数器\;
+  \Return $decision$\;
+  \caption{MMU入队模块决策算法}
+  \label{alg:c3:s5:ss5:enqueue module algorithm}
 \end{algorithm}
-\end{texcode}
 
-\begin{texcode}[]{}
-  \begin{algorithm}[H]
-    \caption{Simulation-optimization heuristic}\label{algorithm:SOH}
-    \begin{algorithmic}[1]
-        \State \textbf{Data:} current period $t$, initial inventory $I_{t-1}$, initial capital $B_{t-1}$, demand samples
-        \State \textbf{Output:} Optimal order quantity $Q^{\ast}_{t}$
-        \State $r\leftarrow t$
-        \State $\Delta B^{\ast}\leftarrow -\infty$
-        \While{$\Delta B\leq \Delta B^{\ast}$ and $r\leq T$}
-          \State $Q\leftarrow\arg\max_{Q\geq 0}\Delta B^{Q}_{t,r}(I_{t-1},B_{t-1})$
-          \State $\Delta B\leftarrow \Delta B^{Q}_{t,r}(I_{t-1},B_{t-1})/(r-t+1)$
-          \If{$\Delta B\geq \Delta B^{\ast}$}
-            \State $Q^{\ast}\leftarrow Q$
-            \State $\Delta B^{\ast}\leftarrow \Delta B$
-          \EndIf
-          \State $r\leftarrow r+1$
-        \EndWhile
-    \end{algorithmic}
-  \end{algorithm}
-\end{texcode}
+算法\ref{alg:c3:s5:ss5:enqueue module algorithm}描述了DSH入队模块决策算法的伪代码。对于每个新到达报文首先获取其大小、入端口和入口队列（第2-4行），然后检查当前端口是否处于POFF状态，如果处于POFF状态且净空缓存空间足够则进入该端口的保底净空缓存空间（第11行），净空缓存溢出则丢弃当前报文（第9行），正常工作的情况下净空缓存溢出的情况不可能出现。如果当前端口处于PON状态则首先查看私有缓存空间是否可用，可用则优先占用私有缓存（第13行）。不可用则进一步检查共享缓存空间，可用共享缓存空间同时受端口级别和队列级别阈值限制，若端口共享缓存占用超过阈值则需要触发端口暂停帧同时决策占用净空缓存（第19-21行），端口可用则决策进入共享缓存空间，同时进一步判断队列级别限制，队列级别阈值控制队列级别流控的触发，如果超过$X_{qoff}$阈值则触发队列暂停帧（第26行）。最后根据决策结果更新缓存占用（第31行）。
+
+\subsubsection{出队模块}
+出队模块算法在报文发送出队之后触发，出队模块不会记录每个报文所在的缓存分区，而是根据缓存使用情况确定出队分区，更新对应计数器释放报文占用的缓存空间，同时决策流量控制恢复帧触发。
+
+\begin{algorithm}[H]
+  \small
+  \SetAlCapFnt{\small}
+  \SetAlCapNameFnt{\small}
+  \Input{待处理报文$packet$}
+
+  \SetAlgoVlined
+
+  \Comment{获取报文的大小，入端口和队列}
+  $pkt\_size \leftarrow packet.size$\;
+  $pid \leftarrow \text{GetIngressPort}(packet)$\;
+  $qid \leftarrow \text{GetQueueIndex}(packet)$\;
+  \Comment{更新净空缓存占用计数器}
+  $from\_headroom \leftarrow \min(headroom\_bytes[pid], pkt\_size)$\;
+  $headroom\_bytes[pid] \leftarrow headroom\_bytes[pid] - from\_headroom$\;
+  \Comment{更新共享缓存占用计数器}
+  $from\_shared \leftarrow \min(shared\_bytes[pid][qid], pkt\_size-from\_headroom)$\;
+  $shared\_bytes[pid][qid] \leftarrow shared\_bytes[pid][qid] - from\_shared$\;
+  \Comment{更新私有缓存占用计数器}
+  $from\_reserved \leftarrow \min(reserved\_bytes[pid][qid], pkt\_size-from\_headroom-from\_reserved)$\;
+  $reserved\_bytes[pid][qid] \leftarrow reserved\_bytes[pid][qid] - from\_reserved$\;
+  \Comment{更新入口队列缓存占用}
+  $ingress\_bytes[pid][qid] \leftarrow ingress\_bytes[pid][qid] - from\_reserved - from\_shared$\;
+  \Comment{检查端口级别流控恢复}
+  \ForAll{$port\_status[p]=OFF$}{
+    \If{$headroom\_bytes[p] \leqslant 0 \And port\_shared\_bytes[p] < N_q \times T(t) - \delta_p$}{
+      $port\_status[p] \leftarrow ON$\;
+      向上游设备发送端口$p$的恢复帧\;
+    }
+  }
+  \Comment{检查队列级别流控恢复}
+  \ForAll{$port\_status[p]=ON \And queue\_status[p][q]=OFF$}{
+    \If{$shared\_bytes[p][q]<T(t)-\eta-\delta_q$}{
+      $queue\_status[p][q] \leftarrow ON$\;
+      向上游设备发送端口$p$队列$q$的恢复\;
+    }
+  }  
+
+  \caption{MMU出队模块处理算法}
+  \label{alg:c3:s5:ss5:dequeue module algorithm}
+\end{algorithm}
+
+算法\ref{alg:c3:s5:ss5:dequeue module algorithm}描述了DSH出队模块处理算法的伪代码。对于每个出队报文首先获取其大小、入端口和入口队列（第2-4行），MMU仅维护每个缓存分区的缓存占用的计数器，并不记录每个报文所在的缓存分区，出队模块进行的缓存释放操作为逻辑上的缓存释放，即更新对应分区的计数器。出队时缓存分区释放的顺序依次为：净空缓存$\rightarrow$共享缓存$\rightarrow$私有缓存，出队模块依次计算上述三个分区的出队字节数并更新对应的计数器（第6-7行，第9-10行，第12-13行）。第15行中$ingress\_bytes[pid][qid]$记录端口$pid$中队列$qid$的非净空缓存占用。报文出队后会导致队列长度减小或者暂停阈值增加，此时需要检测端口级别和队列级别的流控状态以便及时恢复发送。出队模块首先对每个处于暂停状态的端口进行检测，如果净空缓存排空且端口共享缓存占用低于$X_{pon}$阈值则向上游设备发送$pid$对应端口的恢复帧同时恢复PON状态（第17-20行）；然后检查每个PON状态端口中的QOFF状态队列，如果共享缓存占用低于$X_{qon}$阈值则向上游设备发送$qid$对应队列的恢复帧。
 
 
+\xsection{DSH性能测试}{DSH Evaluation}
+\label{c3:s6:dsh evaluation}
 
-\xsection{导入代码}{Input codes}
+本节通过在ns-3仿真平台\cite{ns-3}测试DSH的性能，实验结果总结如下，与现有机制SIH相比：
 
-从现有文件导入源码，使用 \clist[columbiablue]{lstlisting} 宏包，本模板预先定义了一基本格式 \clist{sty_basic} 以供使用，可以自定义新的样式。
+1）DSH在不触发PFC的前提下可以实现超过4倍大小的突发吸纳量。
 
-\begin{texcodeonly}
-\lstinputlisting[style=sty_basic,
-  language=matlab,
-  caption={标准粒子群算法},
-  label={listing:a_label}]{./Codes/pso.m}
-\end{texcodeonly}
-\lstinputlisting[style=sty_basic,
-                    language=matlab,
-                    caption={标准粒子群算法},
-                    label={listing:a_label}]{./Codes/pso.m}
+2）DSH可以有效消除PFC带来的性能损害。
+
+3）在大规模数据中心网络中，DSH最高可以将突发短流的FCT减少57.7\%，背景长流的FCT减少31.1\%。
+
+\xsubsection{基本性能测试}{Basic Performance Evaluation}
+\label{c3:s5:ss1:basic performance evaluation}
+
+本节通过ns-3搭建小型测试环境模拟Broadcom Tomahawk交换芯片，该交换芯片具有32个100Gbps端口和16MB共享缓存空间，每个端口支持8个队列，其中最高优先级队列预留给ACK确认和控制帧，其余7个队列之间采用DWRR调度策略。网络拓扑中的链路传播时延为$2 \mu s$，可得$\eta=\text{56840B}$。所以，SIH中需要预留的净空缓存总量为$\text{56840B} \times 32 \times 7 = \text{12MB}$，私有缓存总大小为$\text{3KB} \times 32 \times 7 = \text{672KB}$。DT中的$\alpha$设置为1/16\cite{SIGCOMM16RDMA}，$X_{qon} / X_{pon}$阈值设置与$X_{qoff} / X_{poff}$相同。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \resizebox{0.95\linewidth}{!}{\input{Figures/pfc-avoidance-scenario.tex}}
+      \subcaption{实验场景}
+      \label{c3:s6:ss1:fig:sub1:pfc avoidance scenario}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{pfc-avoidance.pdf}
+      \subcaption{总暂停时长}
+      \label{c3:s6:ss1:fig:sub1:total pause duration}
+  \end{subfigure}
+  \caption{PFC避免}
+  \label{c3:s6:ss1:fig:sub1:pfc avoidance}
+\end{figure}
+
+\subsubsection{PFC避免}
+
+为了测试DSH在PFC避免方面的性能，测试场景如图\ref{c3:s6:ss1:fig:sub1:pfc avoidance scenario}所示，初始时刻两条背景流分别从入端口0和入端口1去往出端口31，在$t=0.1s$时开启16条突发流，分别从入端口2-17同时去往出端口30。所有突发流的暂停总时间结果如图\ref{c3:s6:ss1:fig:sub1:total pause duration}所示，在突发大小不超过缓存大小的40\%的情况下，DSH不会触发PFC，相对于SIH，不触发PFC情况下的突发吸纳量增加超过4倍。
+
+\subsubsection{死锁避免}
+
+引入PFC可能会发生网络死锁\cite{SIGCOMM16RDMA,INFOCOM14TCP-Bolt,CoNEXT17Tagger,SIGCOMM19GFC,INFOCOM22ITSY}，导致部分网络瘫痪不可用。为了测试DSH在死锁避免方面的性能，搭建如图\ref{c3:s6:ss1:fig:sub1:deadlock scenario}所示的Spine-Leaf型网络拓扑，其中虚线标记的两条链路$S_0-L_3$和$S_1-L_0$因故障断开，拓扑中Spine层有2台交换机$S_0$和$S_1$，Leaf层有4台交换机$L_0-L_3$，每个Leaf交换机通过100Gbps下行链路连接16个主机，通过400Gbps上行链路和两个Spine交换机连接，链路时延均为$2\mu s$。该实验生成4条突发流，分别从$L_0-L_3$去往$L_3-L_0$，该场景下会存在循环缓存依赖：$S_0 \rightarrow L_1 \rightarrow S_1 \rightarrow L_2 \rightarrow S_0$，如图中红色链路标记所示。实验中突发流流数在1-15范围内随机选取，流大小基于Hadoop\cite{SIGCOMM10DCTCP}负载随机选取，流开始时间服从泊松分布并控制链路负载为50\%。不同机制下各自重复100次实验，每次实验持续$100ms$。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{Figures/deadlock-scenario.tex}}
+      \subcaption{实验场景}
+      \label{c3:s6:ss1:fig:sub1:deadlock scenario}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{deadlock-avoidance.pdf}
+      \subcaption{死锁发生时间CDF分布}
+      \label{c3:s6:ss1:fig:sub1:cdf of deadlock onset time}
+  \end{subfigure}
+  \caption{死锁避免}
+  \label{c3:s6:ss1:fig:deadlock avoidance}
+\end{figure}
+
+图\ref{c3:s6:ss1:fig:sub1:cdf of deadlock onset time}显示了不同机制下死锁开始时间的CDF分布。在SIH下基于DCQCN\cite{SIGCOMM15DCQCN}和PowerTCP\cite{NSDI22PowerTCP}的所有实验均发生死锁，相较之下，DSH在DCQCN下避免了96\%的死锁，在PowerTCP下完全避免死锁。这得益于DSH可以利用更多缓存空间吸纳突发从而避免PFC触发。
+
+\subsubsection{附带损害消除}
+
+引入PFC还可能导致无辜流性能受损\cite{SIGCOMM16RDMA}，DSH同样可以通过避免PFC触发避免附加性能损害。
+
+图\ref{c3:s6:ss1:fig:sub1:collateral damage scenario}所示的数据中心典型场景在相关工作中被广泛使用\cite{NSDI20PCN,SIGCOMM17NDP,SIGCOMM21TCD}，其中所有的链路带宽为100Gbps，传播时延为$2 \mu s$。两条长流$F_0$和$F_1$分别从$H_0$和$H_1$发往$R_0$和$R_1$，当两条流的吞吐率各自稳定到50Gbps时，$H_2-H_{25}$同时生成24条突发流量发往$R_1$，每条流的大小为64KB。由于64KB小于BDP大小，拥塞控制机制无法及时对突发流进行调节。此时拥塞点位于$S_1$，$F_1$和所有突发流共同导致该拥塞的发生，而$F_0$并不导致拥塞，所以理想情况下无辜流$F_0$的吞吐率不应该受损。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{Figures/collateral-damage-scenario.tex}}
+      \subcaption{实验场景}
+      \label{c3:s6:ss1:fig:sub1:collateral damage scenario}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/collateral-damage-None.pdf}
+      \subcaption{流$F_0$的吞吐率（w/o CC）}
+      \label{c3:s6:ss1:fig:sub1:throughput of f0 w/o cc}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/collateral-damage-DCQCN.pdf}
+    \subcaption{流$F_0$的吞吐率（DCQCN）}
+    \label{c3:s6:ss1:fig:sub1:throughput of f0 dcqcn}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/collateral-damage-PowerTCP.pdf}
+    \subcaption{流$F_0$的吞吐率（PowerTCP）}
+    \label{c3:s6:ss1:fig:sub2:collateral throughput of f0 powertcp}
+  \end{subfigure}  
+  \caption{附带损害消除}
+  \label{c3:s6:ss1:fig:collateral damage}
+\end{figure}
+
+图\ref{c3:s6:ss1:fig:collateral damage}显示了$F_0$的吞吐率变化。SIH下$F_0$的吞吐率严重受损，其原因在于SIH中$X_{qoff}$阈值较低，所以很容易触发PFC暂停帧。当$S_0$被暂停发送时，$F_0$的数据传输也被暂停。相较之下，DSH可以有效避免$F_0$的吞吐率受损，这得益于DSH分配净空缓存的高效性，从而可以释放更多缓存空间作为共享缓存避免PFC触发。此外，图\ref{c3:s6:ss1:fig:sub1:throughput of f0 dcqcn}和\ref{c3:s6:ss1:fig:sub2:collateral throughput of f0 powertcp}结果显示，现行拥塞控制算法并不能避免PFC带来的附带损害，这是由于端到端拥塞控制算法至少需要一个RTT的时间才能对流量变化做出响应。因此，在第一个RTT的时间内缓存管理机制决定是否可以避免PFC触发。
+
+\xsubsection{大规模网络性能测试}{Performance Evaluation in Large-scale Network}
+
+本节通过在ns-3中搭建大规模数据中心网络，进一步测试DSH在大规模网络中的性能表现。
+
+\subsubsection{拓扑结构}
+
+通过ns-3搭建如图\ref{fig:c3:spine leaf topology}所示Spine-Leaf网络拓扑结构，其中Spine层有16个交换机，Leaf层有16个交换机，每个Leaf交换机下连接16个主机，Spine层交换机和Leaf层交换机之间两两进行全连接，所有链路带宽均为100Gbps，传播时延均为$2 \mu s$，则跨Spine传输的基准RTT为$16 \mu s$。网络中部署ECMP负载均衡机制。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{spine_leaf_architecture.pdf}
+  \caption{Spine-Leaf拓扑结构}
+  \label{fig:c3:spine leaf topology}
+\end{figure}
+
+\subsubsection{交换芯片}
+
+网络中的交换机模拟Broadcom Tomahawk交换芯片，配置同\ref{c3:s5:ss1:basic performance evaluation}所述，具体参数配置总结如图\ref{fig:c3:parameter setting in switch chip}所示。
+
+\begin{figure}[H]
+  \begin{table}[H]
+      \begin{tabularx}{\textwidth}{YYYY}
+      \toprule
+          \textbf{参数} & \textbf{具体配置} & \textbf{参数} & \textbf{具体配置} \\
+      \midrule
+          端口数量 & 32 & 端口支持队列数 & 8 \\
+          端口带宽 & 100Gbps & DT控制参数$\alpha$ & $1/16$ \\
+          缓存容量 & 16MB & 私有缓存预留量 & 672KB \\
+          $X_{qon}$偏移量$\delta_q$ & 0 & 净空缓存预留量 & 12MB \\
+          $X_{pon}$偏移量$\delta_p$ & 0 & 队列调度策略 & SQ|DWRR \\
+      \bottomrule
+      \end{tabularx}
+  \end{table}
+  \caption{交换芯片相关配置}
+  \label{fig:c3:parameter setting in switch chip}
+\end{figure}
+
+
+\subsubsection{传输层}
+
+端到端拥塞控制算法主要采用DCQCN\cite{SIGCOMM15DCQCN}和PowerTCP\cite{NSDI22PowerTCP}，其中的参数配置参考自开源仿真实现\cite{HPCCGitHub}，具体配置如图\ref{fig:c3:parameter setting in transport protocol}所示。
+
+\subsubsection{负载流量}
+
+网络中产生的流量类型包括两种：背景流和突发流。背景流形式为一打一，其发送端和接收端均随机产生，流大小根据web search\cite{SIGCOMM10DCTCP}负载模型确定，流开始时间服从泊松分布，流量所属类别在1-7之间随机生成；突发流形式为多打一，16个发送端同时向同一个接收端发送大小为64KB的流量，发送端随机产生但保证与接收端不在同一个机架下，突发流为固定流量类别，背景流的类别随机从突发流以外类别产生，最大网络负载为90\%。
+
+\begin{figure}[H]
+  \begin{table}[H]
+      \begin{tabularx}{\textwidth}{YYY}
+      \toprule
+          \textbf{参数} & \textbf{DCQCN} & \textbf{PowerTCP}\\
+      \midrule
+          基准RTT（$\tau$） & $16\mu s$ & $16\mu s$ \\
+          $K_{min}$ & $400KB$ & / \\
+          $K_{max}$ & $1600KB$ & / \\
+          $P_{max}$ & 1 & / \\
+          $g$ & $1/16$ & / \\
+          % EWMA增益$R_{AI}$ & $20Mbps$ & / \\
+          % RP计时器（$T$） & $55\mu s$ & / \\
+          快速恢复次数（$F$） & 5 & / \\
+          目标利用率（$\eta$） & / & 0.95 \\
+          EWMA参数（$\gamma$） & / & 0.9 \\
+      \bottomrule
+      \end{tabularx}
+  \end{table}
+  \caption{传输层相关配置}
+  \label{fig:c3:parameter setting in transport protocol}
+\end{figure}
+
+\subsubsection{实验结果}
+
+不同背景流负载下的背景流和突发流FCT结果如图\ref{c3:s6:ss1:fig:benchmark fct}所示，为了便于比较，图中将所有FCT结果相对于SIH进行归一化处理。结果显示DSH对于背景流和突发流的FCT均有明显提升，在DCQCN下，DSH可以将背景流和突发流的平均分别减小10.1\%和43.3\%；在Power TCP下分别减小31.1\%和57.7\%。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/benchmark-avg-fct-incast-dcqcn.pdf}
+      \subcaption{突发流（DCQCN）}
+      \label{c3:s6:ss1:fig:sub1:benchmark fct burst dcqcn}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/benchmark-avg-fct-back-dcqcn.pdf}
+      \subcaption{背景流（DCQCN）}
+      \label{c3:s6:ss1:fig:sub2:benchmark fct back dcqcn}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/benchmark-avg-fct-incast-powertcp.pdf}
+    \subcaption{突发流（PowerTCP）}
+    \label{c3:s6:ss1:fig:sub1:benchmark fct burst powertcp}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/benchmark-avg-fct-back-powertcp.pdf}
+    \subcaption{背景流（PowerTCP）}
+    \label{c3:s6:ss1:fig:sub1:throughput of f0 powertcp}
+  \end{subfigure} 
+  \caption{不同背景流负载下的平均FCT}
+  \label{c3:s6:ss1:fig:benchmark fct}
+\end{figure}
+
+在不同网络应用和拓扑结构下进一步测试DSH的流量传输性能。采用的流量模式包括：Web Search\cite{SIGCOMM10DCTCP}、Data Mining\cite{SIGCOMM09VL2}、Cache\cite{SIGCOMM15FB}以及Hadoop\cite{SIGCOMM15FB}；网络拓扑包括：Spine-Leaf和Fat-tree胖树\cite{al2008scalable}（k=16）结构。不同负载下背景流的FCT结果如图\ref{c3:s6:ss1:fig:benchmark pattern and topology}所示，结果显示，在不同流量模式和网络拓扑下，DSH对于FCT均有不同程度改善。
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/benchmark-pattern-avg-fct-back-dcqcn-mining.pdf}
+      \subcaption{Spine-Leaf\ + \ Data mining}
+      \label{c3:s6:ss1:fig:sub1:benchmark pattern Spine-Leaf mining}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{Figures/benchmark-pattern-avg-fct-back-dcqcn-cache.pdf}
+      \subcaption{Spine-Leaf\ + \ Cache}
+      \label{c3:s6:ss1:fig:sub1:benchmark pattern Spine-Leaf cache}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/benchmark-pattern-avg-fct-back-dcqcn-hadoop.pdf}
+    \subcaption{Spine-Leaf\ + \ hadoop}
+    \label{c3:s6:ss1:fig:sub1:benchmark pattern Spine-Leaf hadoop}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{Figures/benchmark-fattree-avg-fct-back-dcqcn-cache.pdf}
+    \subcaption{Fat-Tree\ + \ Web \ Search}
+    \label{c3:s6:ss1:fig:sub1:benchmark pattern fat-tree search}
+  \end{subfigure} 
+  \caption{不同负载和拓扑下的平均FCT（DCQCN）}
+  \label{c3:s6:ss1:fig:benchmark pattern and topology}
+\end{figure}
+
+\xsection{本章小结}{Brief Summary}
+\label{c3:s7:brief summary}
+
+本章首先描述片上缓存系统现有净空缓存管理策略SIH的具体机制，指出其在净空缓存分配上固有的低效性，分析SIH当前交换芯片带宽高速增长趋势下存在的缓存资源浪费和频繁PFC触发等问题。针对SIH静态隔离分配方式的低效性，提出了一种动态共享净空缓存分配机制DSH，DSH的基本思想即动态地为拥塞队列分配净空缓存，同时在不同队列之间共享分配的净空缓存，通过统计复用的方式减少净空缓存预留量，提高缓存利用效率。在缓存分配方面，DSH不再为每个队列静态预留最坏情况下的净空缓存需求量，而是仅为每个端口预留，以此减少净空缓存预留量；在流量控制方面，DSH结合队列级别流量控制和端口级别流量控制，在避免丢包的同时保证队列之间的隔离性。为了体现DSH的性能优势，本章通过理论分析和实验仿真对DSH的性能进行验证，理论上通过公式推导证明了DSH在突发吸纳能力上优于SIH；实验上通过设计不同网络场景和大规模网络环境验证了DSH在PFC避免、死锁避免和附带损害消除等方面更好的性能表现，以及在大规模网络场景不同流量负载、不同应用场景和不同网络拓扑下的网络性能提升。

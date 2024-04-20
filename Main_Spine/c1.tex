@@ -2,274 +2,186 @@
 
 \xchapter{绪论}{Introductions}
 
-\xsection{背景}{Backgrounds}
+\xsection{研究背景与意义}{Backgrounds and Significance}
 
-本文档仅提供部分可能用到的示例，系统的学习 \LaTeX 用法请参考其他书目，如 \emph{lshort}，可通过在 shell(命令行/cmd) 中执行 \clist{texdoc lshort-zh} 获得中文版。
+% 近年来，在数据中心和集群计算系统中，无损网络已经成为一种流行的趋势。一般来说，数据包丢失引起的重传很容易导致吞吐量减少、完成时间增加，甚至错过应用程序截止日期。
 
-同时，务必意识到 \LaTeX 的工作及使用方式与 Microsoft Word 有极大的不同，不要问「怎么在 \LaTeX 中实现 Word 的 xx 功能」。
+高带宽和低时延是高速网络的两个关键需求。为了满足这些需求，数据中心网络广泛部署远程直接内存访问（Remote Direct Memory Access, RDMA）技术\cite{SIGCOMM16RDMA,JYRJ202103005}。RDMA通过将网络协议栈卸载到硬件，可以在接近于零的CPU开销下实现高带宽和超低时延网络传输。在众多支持RDMA的协议中，包括InfiniBand、iWRAP等，RoCE/RoCEv2\cite{ibaRocev2}（RDMA over commodity Ethernet v2）因其低开销和低复杂度被广泛采用。RDMA网络中的丢包重传会严重损害传输性能，导致吞吐量降低、完成时间增加，甚至错过应用截止时间。因此，RDMA部署需要无损网络支持\cite{SIGCOMM15DCQCN,SIGCOMM15TIMELY,SIGCOMM16RDMA,SIGCOMM19HPCC,SIGCOMM20MasQ,liu2020datacenter}。
 
-\xsection{符号说明}{Examples}
+无损网络即不因设备缓存溢出而丢包。在RoCE/RoCEv2中，通常通过逐跳基于优先级的流量控制\cite{PFC}（Priority-based Flow Control，PFC）实现无损传输。支持PFC的转发设备在缓存占用超过一定阈值时向其上游设备发送一个暂停帧（PAUSE frame），上游设备收到该暂停帧后会暂停数据包的发送以此避免丢包。由于暂停帧从下游设备触发到被上游设备接收到并发挥作用需要一定的时延，所以转发设备需要预留部分缓存空间存储该时延内接收到的报文\cite{SIGCOMM15DCQCN,SIGCOMM16RDMA}，这部分缓存空间称为净空缓存（Headroom）。
 
-为了更加清楚的说明本模板的用法，特意使用了如下几种标记方式来标记「\LaTeX 源码」及「说明」：
+PFC本身可能对传输性能造成损害。在大规模网络中，PFC暂停帧会导致严重的性能问题，如头阻（head-of-line blocking）、拥塞传播、附带损害和死锁等问题\cite{SIGCOMM16RDMA,SIGCOMM19HPCC,INFOCOM14TCP-Bolt,CoNEXT17Tagger,SIGCOMM19GFC,TPDS20P-PFC,INFOCOM22ITSY, hu2022load}。因此，无损网络中的一个普遍共识为尽可能避免PFC触发，理想情况下PFC应该仅作为保证无损传输的保底机制。
 
-\clist{行内的灰色字块}表示简短的代码（\LaTeX 或 shell）；
+在保证无丢包的前提下，避免PFC触发的关键在于一个高效的净空缓存管理机制。然而，随着高速网络链路带宽和分布式应用网络服务需求不断增加，现有净空缓存管理机制的低效性和性能问题日益突出。因此，无损网络中净空缓存管理机制正面临严峻挑战，需要进一步改善。
 
-\clist[columbiablue]{行内的蓝色字块}表示宏包的名称。
+% 无法适应数据中心网络的发展趋势和提高网络性能的需求。
 
-\begin{tcolorbox}
-  灰色框用来放置有一定长度的 \LaTeX 源码（及执行结果）
-\end{tcolorbox}
+一方面，在数据中心网络内部，链路带宽已经从1Gbps快速增长到40Gbps再到100Gbps，目前仍在持续增长中，即将达到400Gbps\cite{SIGCOMM16RDMA,SIGCOMM15Jupiter}。经过调研发现，在当前的发展趋势下，数据中心网络中PFC的触发频率不断增加。具体地，交换芯片缓存中的净空缓存预留需求量和链路带宽呈正相关关系，随着数据中心网络链路带宽增加，需要预留的净空缓存总量也随之同比例增加。然而，为了高速、低时延的内存访问，现代数据中心交换机中普遍采用片上缓存。受限于芯片面积和成本，交换芯片上的缓存容量并不能以链路带宽增长速度同等程度增加\cite{INFOCOM20BCC,ICNP21FlashPass,BS19BFC}，在过去十年的时间里，片上缓存容量和交换带宽的比值已经减小超过四倍。
 
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  红色框用来放置学校的学位论文模板的\textbf{格式}要求
-\end{tcolorbox}
+在数据中心链路带宽的增长趋势下，交换机需要预留更多缓存空间作为净空缓存，净空缓存空间严重挤压正常流量能够占用的缓存空间，使得队列长度很容易到达PFC阈值从而导致频繁的PFC触发。即使最新的拥塞控制（Congestion Control，CC）算法\cite{SIGCOMM15DCQCN,SIGCOMM15TIMELY,SIGCOMM16RDMA,SIGCOMM19HPCC}可以将交换机缓存占用维持在一个较低的水平，上述问题仍然无法完全解决，其原因在于端到端拥塞控制至少需要一个往返时延（Round-Trip Time，RTT）的时间来响应拥塞，对于短时间内的拥塞无能为力，然而短时间内的拥塞在数据中心网络中是十分常见的。研究表明，在未来的数据中心网络中，大多数流将会在一个RTT的时间内完成\cite{SIGCOMM18Homa,SIGCOMM20Aeolus}，并且大多数拥塞将会由持续时间不足一个RTT的突发导致\cite{IMC17microburst}。因此，在一个RTT的时间内，能否避免PFC触发仍然取决于缓存管理策略。
 
-\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
-  蓝色框用来放置学校的学位论文模板的\textbf{内容}要求
-\end{tcolorbox}
+数据中心内部交换机通常部署片上缓存系统。经过调研发现，片上缓存系统中的现行静态净空缓存管理策略（Static Isolated Headroom，SIH）存在固有的低效性，根源在于SIH按照最坏情况给每个端口的每个入口队列静态预留净空缓存空间，从而导致严重的缓存空间浪费：
 
-\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=绪论部分的要求]
-  绪论部分主要论述论文的选题意义及应用背景、国内外研究现状分析及论文的主要研究内容等。
-\end{tcolorbox}
+1）并不是所有的入口队列都需要占用净空缓存，当且仅当队列发生拥塞时才开始占用，而且所有队列同时拥塞的可能性极低。所以在大多数情况下，只有少量的净空缓存空间被使用。
+
+2）为每个队列按照最坏情况静态预留净空缓存具有明显的低效性。最坏情况下的净空缓存需求量基于端口线速度计算，然而现实中同一端口下的不同队列天然共享其上行链路带宽。因此，所有队列同时以线速打流的最坏情况不可能发生。
+
+另一方面，随着数据中心网络中业务应用的发展，不只是数据中心内部流量，跨数据中心流量同样需要高带宽、低时延的网络服务来保证性能和可靠性\cite{bai2023empowering}，如分布式存储\cite{gao2021cloud,calder2011windows}。具体地，同一个应用的计算和存储集群可能位于不同数据中心内部。因此，将RDMA从数据中心内部扩展到跨数据中心之间成为新的发展趋势\cite{zhao2023deterministic}。
+
+跨数据中心传输的时延增加了净空缓存管理的压力。跨数据中心传输在RTT上具有显著的异构性。具体地，跨数据中心长距离传输的RTT在距离变化范围内可达几毫秒至两微秒\cite{bai2023empowering}。净空缓存需求量正比于链路传播时延，在RTT增加到两微秒时，每队列净空需求量可达25MB，片上缓存系统无法满足跨数据中心传输的缓存容量需求。因此，跨数据中心转发设备通常部署异构缓存系统。利用高带宽缓存（High Bandwidth Memory，HBM）技术，异构缓存系统可以在片外提供比片上缓存大数百倍的缓存空间\cite{jedecHBM2E,kim2019design}。异构缓存系统的复杂度和异构性对净空缓存管理机制提出了更高的要求。
+
+% 将RDMA扩展到区域范围则需要跨数据中心转发路由器提供无损网络支持，不同于交换机，路由器需要更大容量的缓存空间，片上缓存无法满足其容量需求。随着2.5D堆叠技术的发展，HBM（High Bandwidth Memory）可以在片外提供容量比片上缓存大百倍的缓存空间[1]，但是其带宽仍然无法满足线速转发，不同物理特性的片上与片外缓存共存形成了异构缓存系统架构。异构缓存系统带来的片外带宽瓶颈、出队保序、数据包交织等新特性，导致针对纯片上缓存系统设计的缓存管理算法无法适用。
+
+经过调研发现，主流转发设备厂商针对异构缓存系统的净空缓存管理机制H-SIH存在显著的低效性和性能损害问题：
+
+1）突发吸纳能力受限于片外带宽。H-SIH在拥塞程度较低时可以片外缓存吸纳足量突发，然而，由于片外缓存带宽受限，H-SIH在片外带宽瓶颈时会面临片外队列积累受阻，从而导致H-SIH突发吸纳能力受限。
+
+2）全局流量控制损害流量吞吐性能。PFC控制帧本身对网络性能有害，H-SIH引入的全局流量控制会造成大量队列暂停帧同时触发，进一步加重流量传输性能损害。
+
+3）长距离传输场景下无法避免丢包。长距离传输存在的时延异构性增加了净空缓存分配的压力，H-SIH采用的片上预留净空缓存方式无法完全避免丢包。
+
+现有净空缓存管理机制的低效性和性能问题主要有两方面来源，一方面在于其静态隔离的净空缓存分配方式，另一方面在于缺乏对缓存结构与流量特性的正确认识。因此，不能简单地调节静态净空缓存大小，需要针对片上缓存系统和异构缓存系统架构分别设计新的净空缓存分配机制从根本上解决上述问题。
+
+% \setcounter{subsubsection}{0}
+
+% \subsubsection{净空缓存分配位置：净空缓存从片上缓存还是片外缓存空间分配}
+
+% \subsubsection{净空缓存分配粒度：净空缓存按照端口粒度还是队列粒度分配}
+
+% 针对片上缓存系统，本文提出了动态共享净空缓存管理机制DSH（Dynamic Shared Headroom）；针对异构缓存系统，本文提出了面向异构缓存系统的动态共享缓存管理策略（H-DSH）。动态性在于只有队列发生拥塞时才动态地为其分配净空缓存，避免缓存空间浪费。共享性在于通过在不同入口队列之间共享净空缓存，以统计复用的方式高效利用净空缓存。同时，结合端口级别流量控制和队列级别流量控制：一方面，端口级别流量控制基于对同端口下不同队列天然共享上行链路带宽的认识，不需要为每个入口队列独立地预留净空缓存，而仅为每个端口预留一定量的净空缓存使得同一个端口下的入口队列共享这块缓存即可保证无损传输；另一方面，端口级别流量控制会损害流量之间的隔离性，当一个端口的预留净空缓存开始占用时，上行链路的所有流量都会被暂停发送，在大多数情况下仍然采用队列级别流量控制，端口级别流量控制只是作为一个防止丢包的保险机制。不同于纯片上缓存系统，H-DSH在异构缓存系统中进一步解决了片上缓存与片外缓存定位、各自占用时机以及片外缓存压力减轻措施等问题。
+
+% 通过在ns-3仿真平台对DSH和H-DSH进行测试，结果显示DSH可以在不触发PFC的情况下吸收超过4倍大小的突发流量，有效消除PFC引入的头阻和死锁等网络损害。大规模仿真结果显示DSH最高将突发短流的流完成时间减少57.7\%、其它流的流完成时间减少31.1\%；H-DSH可以
+
+% SIH固有的低效性来源于其队列间独立且静态的净空缓存分配方式，简单地调节静态预留净空缓存大小可能会导致丢包的发生。所以，对于纯片上缓存系统，需要设计一个新的净空缓存分配机制从根本上解决这一问题。
+
+
+\xsection{国内外研究现状}{Research Status}
+
+如何避免PFC的网络损害一直是无损网络领域研究的热点，对此，国内外学者的普遍共识为尽可能地避免PFC触发，理想情况下PFC应该只被作为保证无损传输的备选措施。关于如何避免PFC触发，学术界和工业界主要有两个研究方向：端到端拥塞控制和缓存管理。其中缓存管理针对不同的缓存系统架构目前存在两个研究分支：片上缓存系统缓存管理和异构缓存系统缓存管理。另外，还有很多研究关注通过其它方式消除PFC损害，如负载均衡、死锁检测等。
+
+\xsubsection{端到端拥塞控制}{End-to-end Congestion Control}
+
+为了减少PFC触发，研究人员提出了一系列端到端拥塞控制算法，旨在通过将队列维持在一个较低的长度，从而避免PFC触发。
+
+Brent Stephens等人为了解决无损网络中PFC导致的性能问题，通过结合DCB和DCTCP提出了一个TCP变种TCP-Bolt\cite{INFOCOM14TCP-Bolt}，利用DCB防止短时间内的突发导致吞吐受损，同时借助DCTCP将队列长度维持在较低的水平。TCP-Bolt一定程度上解决了无损网络中的高时延、不公平性和头阻问题。同时为了解决PFC死锁问题，提出了一个无死锁路由机制，基于边不相交生成树（Edge-Disjoint Spanning Tree，EDST）保证生成的路由不存在环路，从而避免死锁。
+
+Microsoft和Mellanox提出的DCQCN\cite{SIGCOMM15DCQCN}标志着RDMA在数据中心网络规模化部署的开端。DCQCN指出基于RoCEv2部署RDMA时PFC可能导致头阻和不公平性等问题，提出导致该问题的根本原因在于粗粒度的端口级别流控，无法区分具体的流，进而导致拥塞扩散，网络性能受损。DCQCN结合数据中心TCP\cite{SIGCOMM10DCTCP}（DCTCP）和量化拥塞通知 (Quantized Congestion Notification, QCN) ，基于速率建立了一个细粒度流级别的拥塞控制算法，在不公平和无辜流场景下可以有效减少PFC控制帧数量，从而避免PFC导致的性能损害，提升网络性能。
+
+与DCQCN同时发表在网络顶级会议Sigcomm，Google也提出了RDMA在数据中心网络部署的拥塞控制解决方案Timely\cite{SIGCOMM15TIMELY}。不同于DCQCN，Timely使用数据包的RTT来检测拥塞，RTT测量端在测量到RTT后将其发送给控制端，控制端运行其中的拥塞控制算法根据RTT计算更新之后的目标速率，调节数据包的发送速率。与DCQCN类似，TIMELY利用RTT的变化获得流级别的拥塞信息从而实现流级别的拥塞控制。在RDMA场景下，Timely可以有效减少PFC控制帧数量。
+
+阿里巴巴在多年运行大规模RoCEv2后发现RDMA网络在协调低延迟、高带宽利用率和高稳定性方面面临着根本性的挑战，存在PFC风暴和尾部时延较长等问题，同时指出DCQCN和Timely存在的收敛速度慢和队列积累等问题。为了解决RDMA网络中时延、带宽和稳定性的权衡问题，阿里巴巴提出新一代拥塞控制算法HPCC\cite{SIGCOMM19HPCC}，HPCC第一个提出利用带内网络遥测（Inband Network Telemetry，INT）技术来获得精确的链路拥塞信息，根据INT信息精确地计算出更新后的目标发送速率，而不需要同传统拥塞控制算法一样进行迭代逐步收敛到目标速率。HPCC可以将队列长度维持在一个接近于零的水平，很大程度上避免了队列积累而触发PFC。
+
+Wenxue Cheng等人为了解决PFC带来的头阻、不公平和死锁等问题，重新检视了流量控制和拥塞控制之间的相互作用，发现当PFC不断触发时，局部拥塞会扩散回拥塞源和非拥塞源，严重影响网络吞吐量和流完成时间。同时指出这些性能问题的根本解决方案是通过端到端的拥塞控制方案消除持久的拥塞，避免PFC不断触发。基于以上认识对无损以太网的拥塞控制进行了重构，提出PCN\cite{NSDI20PCN}，PCN包括两个主要设计，一是拥塞检测与识别机制，用于识别哪些流是造成拥塞的真正原因；二是接收端驱动的速率调整方案，以尽可能快地在一个RTT内缓解拥塞。PCN可以显著减少无损网络中的PFC暂停帧，提高网络性能。
+
+为了逼近数据中心网络的性能极限，Vamsi Addanki等人通过控制理论将数据中心网络现有的拥塞控制算法统一到一个抽象模型中，将现有的拥塞控制算法分为两类：基于网络状态的拥塞控制算法和基于网络变化的拥塞控制算法。通过论证两类拥塞控制各自固有的缺陷，提出了一个新的概念Power，并基于此提出了一种同时基于网络状态和网络变化的拥塞控制算法PowerTCP\cite{NSDI22PowerTCP}。PowerTCP实现了反应速度和控制精度之间的权衡，在将队列长度维持在接近于零、不损害网络吞吐的同时保证了公平性。
+
+Yiran Zhang等人通过深入观察和理解发现主流无损网络中拥塞检测机制的不合理性，不合理之处在于没有认识到逐跳流量控制和交换机中拥塞检测行为之间的相互作用，具体地，交换机ON-OFF发送模式会对交换机中的拥塞检测行为产生意外影响，包括导致队列累积和影响暂停端口的实际输入速率。基于以上认识提出针对无损网络的三元状态拥塞检测TCD\cite{SIGCOMM21TCD}，通过未确定态来区分ON-OFF发送模式中的端口状态，实现无损网络中拥塞的更精确识别。
+
+Cisco针对RDMA提出了一个鲁棒拥塞控制机制RoCC\cite{CoNEXT20RoCC}，通过控制理论在交换机处计算队列中每条流的公平共享发送速度，将交换机的队列长度作为PI控制器的输入，同时通过自适应调节的PI参数同时实现稳定性、快速收敛、公平性和接近最佳吞吐。稳定性和快速收敛确保了队列不会过度积累，从而减少PFC触发。
+
+Jiao Zhang等人观测到数据中心网络中的拥塞大多发生在最后一跳，基于此提出一个接收端驱动的快速拥塞控制机制RCC\cite{ICNP21RCC}。RCC将最后一跳拥塞和内部拥塞区分开来，结合显式窗口分配和迭代式窗口调节，对于最后一跳拥塞采用显式窗口拥塞，对于内部拥塞采用迭代式窗口调节，RCC可以同时实现快速收敛和接近于零的排队时延。
+
+华为基于同一机架内聚合流寿命相对较长的认识提出了分层RDMA拥塞控制HierCC\cite{zhang2021hiercc}，HierCC将发送到机架中相同IP的各个流聚合在一起，使用基于信用的主动拥塞控制来控制机架之间的聚合流速率，同时利用机架中的聚合流获得的带宽将其分配给该机架中相应的单个流。HierCC通过缩短响应环路实现更及时和准确的速率控制。
+
+Xiaolong Zhong等人发现由于端到端的控制回路过长，现有的拥塞控制算法对拥塞的反应迟缓，对微突发甚至无法感知。进而提出了一个交换机驱动的拥塞控制机制PACC\cite{zhong2022pacc}，PACC在交换机处基于PI控制器进行计算、基于阈值进行流量分辨、基于权重进行分配，利用实时队列长度主动产生准确的拥塞反馈，进一步提高了对拥塞的反应速度。
+
+
+\xsubsection{片上缓存系统缓存管理}{Buffer Management for On-Chip Buffer System}
+
+即使端到端拥塞控制算法可以将缓存占用维持在一个较低的水平，PFC带来的问题仍然无法完全解决。端到端拥塞控制响应环路至少需要一个RTT的时间，然而短时间内的拥塞在数据中心网络中是十分常见的。因此，在第一个RTT的时间内，避免触发PFC的关键在于缓存管理策略。在纯片上缓存系统中，关于净空缓存管理策略的研究一直没有停止过。
+
+Mellanox针对交换机中的共享缓存结构提出了一个灵活的缓存分配方案\cite{flexibleBufferAllocation}，将整个缓存在逻辑上划分为共享缓存和净空缓存，收到数据包后首先进入净空缓存，根据净空缓存占用情况决定是否触发流量控制以及是否将数据包移入共享缓存。由于只是逻辑上隔离，共享缓存和净空缓存之间数据包的转移并不会涉及物理内存的移动，只需要更新相应的计数器即可。然而，净空缓存总量仍需要按照最坏情况提前预留。
+
+Broadcom针对独立入口缓存的交换机提出在入口缓存中分配净空缓存的策略\cite{ingressBuffering}，同时PFC暂停阈值根据共享缓存的使用情况动态调整。在入口缓存分配净空缓存可以降低交换芯片的空间和能耗压力，进一步地，通过在共享缓存根据出端口分区存储数据包，可以减少输出逻辑的读带宽需求。该策略可以释放共享缓存压力，但是并没有减少净空缓存的静态预留量，只是将其转移到了入口缓存中，同时需要依赖交换机支持入口缓存结构。
+
+根据最坏情况给每个队列预留净空缓存导致缓存的利用率低下，为了减少净空缓存需求量，其中一个研究方向是通过在触发PFC流控时引入随机性来避免多个端口同时出现最坏情况。具体实现有不同的方式，Broadcom提出在PFC暂停阈值计算时引入随机偏移量或触发PFC的概率随着队列长度积累不断增加\cite{reducingHeadroom}。Mellanox同样也是在产生PFC暂停帧的时候引入随机延迟，通过三种颜色来区分数据包的优先级，不同优先级数据包在触发PFC时采用不同的概率曲线\cite{losslessBehavior}。一方面，由于暂停帧的生效时延主要来自于传播时延，所以在时延上引入的随机性效果优先；另一方面，引入随机性可以一定降低同时出现最坏情况的概率，但基于此减少净空缓存预留量无法完全避免丢包。
+
+为了减少净空缓存的净空预留量，很多交换机厂商提出了动态分配解决方案。Dell基于每个队列同时发生最坏情况几乎不出现的认识，提出了一个自适应的动态净空缓存分配策略\cite{selfTuningBufferAllocation}，静态预留的净空缓存总量小于所有队列最坏情况下的净空缓存需求总和。每个队列分配到的净空缓存可以动态调整，如果当前净空缓存使用率超过了高利用率阈值则进行再分配，低于低利用率阈值则相应需要进行回收。与此类似，Mellanox提出了一个自调整缓存分配方案\cite{adaptiveHeadroomAllocation}，将净空缓存分为逐端口的净空缓存池和全局净空缓存池，全局净空缓存用于动态分配，动态分配方式与Dell类似。Broadcom进一步将缓存划分为三部分\cite{adaptiveThresholding}：保留缓存作为每个队列的最小缓存保证；逐队列净空缓存只保证容纳一个RTT内的数据包；全局净空缓存用于动态分配，基本原理与上述策略类似。综上所述，动态分配方式可以减少净空缓存预留量，但是无法保证极端情况下无丢包。
+
+\xsubsection{异构缓存系统缓存管理}{Buffer Management for Hybrid Buffer System}
+
+近几年，随着高带宽存储技术的发展，片上缓存与片外缓存混合的异构缓存系统新架构逐步应用于路由器中。异构缓存系统对于缓存管理算法提出了新的要求与挑战，目前，关于异构缓存系统缓存管理算法的研究还处于初步阶段，现行的净空缓存管理方案主要来自于主流交换机厂商。
+
+Broadcom提出将异构缓存系统中的片外缓存作为超额订购\cite{BCM88480}，数据包到达后优先占用片上缓存，只有在片上缓存紧缺时才将数据包搬移到片外。缓存控制逻辑采用串行工作模型，数据包可以从片上缓存再决策搬移到片外缓存。净空缓存在片上进行预留，但是预留总量少于最坏情况下的需求总量。为了保证在最坏情况下无丢包，进一步引入链路级别流量控制，当净空缓存占用超过一定阈值后，需要触发链路级别流量控制暂停所有可能的流量源，以防止净空缓存溢出而发生丢包。
+
+Cisco针对异构缓存系统提出了一个驱逐模型\cite{CiscoNcs5500}，缓存管理策略以片上缓存为中心，只有在需要的时候才占用片外缓存，在检测到拥塞时选择将拥塞队列中的数据包决策进入片外缓存，空对立和轻微拥塞队列的数据包进入片上缓存。不同于Broadcom，缓存控制逻辑采用并行工作模型，在缓存管理单元（Memory Management Unit，MMU）决策缓存位置后不会再改变该数据包的缓存位置。为了应对可能出现的片外带宽瓶颈，该策略引入全局流量控制，通过全局暂停流量源来避免片外带宽用尽而丢包。
+
+\xsubsection{PFC损害消除}{PFC Damage Elimination}
+
+关于PFC损害消除的研究也一直没有停止过，Jinbin Hu等人提出PLB\cite{hu2022load}通过负载均衡消除PFC的头阻问题；Chen Tian等人提出的P-PFC\cite{TPDS20P-PFC}通过预测缓存占用提前触发PFC，从而避免突发流导致的队列积累；关于PFC死锁检测、避免和恢复的研究也有很多，如Brent Stephens等人提出的TCP-Bolt\cite{INFOCOM14TCP-Bolt}，Shuihai Hu等人提出的Tagger\cite{CoNEXT17Tagger}，Kun Qian等人提出的GFC\cite{SIGCOMM19GFC}，Xinyu Crystal Wu等人提出的ITSY\cite{INFOCOM22ITSY}。这些机制可以有效消除PFC的部分损害，但未从根本上解决PFC损害。
+
+\xsubsection{总结}{Summary}
+综合以上相关工作，其主要思想和特点总结如图\ref{c1:s4:fig:research status}。其中PFC损害消除相关研究仅关注解决PFC导致的损害，未从根本上避免PFC触发；端到端拥塞控制相关研究通过改进拥塞控制机制，将队列维持在较低的水平以避免PFC触发，但是拥塞响应至少需要一个RTT时间；缓存管理可以决定一个RTT时间内的PFC触发，但是现行缓存管理机制存在固有的低效性。本文关注于设计一种更高效的净空缓存管理机制。
+
+\begin{figure}[H]
+  \begin{table}[H]
+      \begin{tabularx}{\textwidth}{YYcY}
+      \toprule
+          研究方向 & 方案/厂商 & 基本思想 & 总结 \\
+      \midrule
+      \multirow{11}{*}{端到端拥塞控制} & TCP-Bolt & 结合DCB和DCTCP & \multirow{11}{*}{\parbox{3cm}{\centering 通过改进拥塞控制机制, 将队列维持在较短长度避免PFC触发，响应环路至少需要一个RTT}} \\
+      & DCQCN & 基于QCN提供流粒度拥塞控制 & \\
+      & Timely & 基于RTT提供流粒度拥塞控制 & \\
+      & HPCC & 基于INT实现精确拥塞控制 & \\
+      & PCN & 识别拥塞发生根源，接收端驱动 & \\
+      & TCD & 精确识别无损网络中的拥塞 & \\
+      & RoCC & 基于控制论计算流的发送速度 & \\
+      & PACC & 基于控制论在交换机处检测拥塞 & \\
+      & RCC & 区分最后一跳拥塞和内部拥塞 & \\
+      & HierCC & 以聚合流粒度进行拥塞控制 & \\
+      & PowerTCP & 同时基于网络状态和网络变化 & \\
+      \midrule[0.5pt] 
+      \multirow{6}{*}{\parbox{3cm}{\centering 缓存管理 \\（片上缓存系统）}} & Mellanox & 逻辑上划分共享缓存和净空缓存 & \multirow{6}{*}{\parbox{3cm}{\centering 按最坏情况为队列预留存在低效性，减少净空缓存预留总量无法避免丢包}}\\
+      & Broadcom & 在入口缓存分配净空缓存 & \\
+      & Broadcom & PFC阈值计算引入随机偏移 & \\
+      & Mellanox & 产生PFC暂停帧时引入随机延迟 & \\
+      & \multirow{2}{*}{\parbox{3cm}{\centering Broadcom \\ Dell \ Mellanox}} & \multirow{2}{*}{\parbox{5.5cm}{\centering 减少净空缓存预留总量，每个队列需要的净空缓存动态分配}} & \\
+      & & & \\
+      \midrule[0.5pt]
+      \multirow{2}{*}{\parbox{3cm}{\centering 缓存管理 \\（异构缓存系统）}} & Cisco & 片上缓存资源紧缺时决策到片外 & \multirow{2}{*}{\parbox{3.2cm}{\centering 片外缓存低效，流控损害性能}} \\  
+      & Broadcom & 片上缓存资源紧缺时搬移到片外 & \\
+      \midrule[0.5pt]
+      \multirow{4}{*}{\parbox{3cm}{\centering PFC损害消除}} & PLB & 利用负载均衡消除PFC头阻 & \multirow{4}{*}{\parbox{3cm}{\centering 仅关注PFC损害消除，未从根本上避免PFC触发}} \\ 
+      & P-PFC & 提前触发PFC避免队列积累 & \\
+      & \multirow{2}{*}{\parbox{3cm}{\centering Tager \ ITSY \\ GFC \ TCP-Bolt}} & \multirow{2}{*}{关注死锁检测、避免以及恢复} & \\
+      & & & \\
+      \bottomrule
+      \end{tabularx}
+  \end{table}
+  \caption{国内外研究现状总结}
+  \label{c1:s4:fig:research status}
+\end{figure}
+
+\xsection{论文主要工作}{Main Research Content}
+
+针对无损网络中净空缓存分配的低效性及其导致的性能问题，本文从统计复用的角度出发，研究设计了面向片上缓存系统的动态共享净空缓存管理机制和面向异构缓存系统的动态共享净空缓存管理机制。本文的研究内容如图\ref{c4:s1:ss1:overall architechture}所示，主要工作和创新性总结如下：
+
+1） 面向片上缓存系统的动态共享净空缓存管理机制。针对片上缓存系统现行净空缓存分配机制SIH静态隔离分配方式的固有低效性，本文基于统计复用的思想提出动态共享净空缓存分配机制DSH。其中，动态性主要体现在DSH不再静态地为每个队列预留净空缓存，而是根据队列拥塞状态动态分配。共享性主要体现在两方面：一方面，DSH为每个端口静态预留保底净空缓存，保底净空缓存可以在端口内不同队列之间共享；另一方面，DSH动态分配的共享净空缓存可以在所有队列之间共享。为了验证DSH的性能，本文通过ns-3搭建片上缓存系统并实现DSH缓存管理模块。实验结果表明，在大规模网络中，DSH最多可以将背景流的流完成时间降低31.1\%，突发流的流完成时间降低57.7\%，同时DSH可以有效减少PFC触发，避免PFC造成网络性能损害。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\linewidth]{Figures/overall_architechture.pdf}
+  \caption{研究内容基本框架}
+  \label{c4:s1:ss1:overall architechture}
+\end{figure}
+
+% \todo{修改基本框架}
+
+2）面向异构缓存系统的动态共享净空缓存管理机制。针对异构缓存系统现行净空缓存分配机制H-SIH的突发吸纳受限于片外带宽、全局流控损害吞吐和长距离传输丢包问题，本文将动态共享思想扩展到异构缓存系统，提出一个适用于异构缓存系统的净空缓存管理机制H-DSH。在缓存分配上，H-DSH以片外缓存为中心：一方面，H-DSH将片外缓存作为共享缓存空间，在片外带宽足够时将共享缓存空间扩展到片外缓存容量；另一方面，H-DSH优先从片外缓存动态分配共享净空缓存，从而缓解片上净空缓存分配压力。在缓存决策上，H-DSH进一步结合流量的敏感性特征，将报文划分为流量敏感型和带宽敏感型，基于流量敏感性识别机制进行缓存位置决策，充分发挥片上和片外缓存的带宽和容量优势。在流量控制上，H-DSH基于概率模型主动提前触发部分拥塞流量的暂停帧，避免片外带宽瓶颈导致性能受损。本文通过ns-3搭建异构缓存系统并实现H-DSH缓存管理模块。实验结果表明，H-DSH可以有效减少PFC触发，避免流量吞吐受损，对于片外缓存的突发吸纳量的提升超过3倍，最高可以将平均FCT降低14.7\%，同时对无损传输距离提升超过4倍。
+
+\xsection{论文组织结构}{Thesis Structure}
+
+本文主要分为三个部分：第一部分介绍无损网络、缓存系统和网络仿真的相关技术，主要介绍了无损网络中的PFC机制，缓存系统中的共享缓存结构、架构演进、高带宽缓存技术和异构缓存系统工作模型，以及ns-3网络仿真平台的基本架构。第二部分提出面向片上缓存系统的动态共享缓存管理机制，通过仿真实验验证机制有效性。第三部分提出面向异构缓存系统的动态共享缓存管理机制，通过仿真实验验证机制有效性。本文共有五个章节，以下为各章节具体内容：
+
+第一章 \ 绪论。本章首先介绍本文的研究背景与意义，表明本文工作的必要性。然后详细总结了国内外学术界和工业界在本领域的研究工作。最后阐述本文的主要工作和组织架构。
+
+第二章 \ 相关技术。本章首先对缓存系统进行了简要概述，对不同缓存系统进行阐述和对比。其次针对异构缓存系统进行详细介绍。然后对无损网络中PFC机制进行详细说明。最后简要介绍了ns-3网络仿真平台的架构和功能。
+
+第三章 \ 片上缓存系统净空缓存管理机制。本章首先描述片上缓存系统现行净空缓存管理策略SIH的具体机制，指出其在净空缓存分配上固有的低效性，针对SIH的缓存资源浪费和频繁PFC频繁触发等问题，提出了一种动态共享净空缓存分配机制DSH。通过仿真实验与SIH进行性能对比，验证DSH有效性。
+
+第四章 \ 异构缓存系统净空缓存管理机制。本章首先描述异构缓存系统现行净空缓存管理策略H-SIH具体机制，指出H-SIH的片外缓存利用低效性、全局流量控制损害吞吐和长距离传输丢包问题。针对以上问题提出了一种适用于异构缓存系统架构的动态共享净空缓存管理机制H-DSH。通过仿真实验与H-SIH进行性能对比，验证H-DSH有效性。
+
+第五章 \ 总结与展望。本章首先总结本文工作，然后对本工作改进点和未来研究工作进行展望。
+
 
 \clearpage
-
-\xsection{基本功能}{Basic Functions}
-
-\xsubsection{文档层级}{Level of this document}
-
-按照要求，正文最多应具有七个层级。其中，为了方便中英目录的生成，模板重新定义了前三级标题的命令，并新增了第六级的命令。注意，不论正文主体语言是否为英文，标题顺序均为先中后英（前三级）。
-
-\begin{table}[H]
-  \begin{tblr}{
-    colspec={X[c]X[c]},
-    verb
-  }
-    \toprule
-      层级 & 命令 \\
-    \midrule
-      0  & \verb|\xchapter{Chs}{Eng}| \\
-      1  & \verb|\xsection{Chs}{Eng}| \\
-      2  & \verb|\xsubsection{Chs}{Eng}| \\
-      3  & \verb|\subsubsection{Chs/Eng}| \\
-      4  & \verb|\paragraph{Chs/Eng}| \\
-      5  & \verb|\subparagraph{Chs/Eng}| \\
-      6  & \verb|\subsubparagraph{Chs/Eng}| \\
-    \bottomrule
-  \end{tblr}
-\end{table}
-
-示例如下：
-
-\subsubsection{第四级标题$1$}
-
-\paragraph{第五级标题$1$}
-
-\paragraph{第五级标题$2$}
-
-\paragraph{第五级标题$3$}
-
-\subparagraph{第六级标题$1$}
-
-\subparagraph{第六级标题$2$}
-
-\subparagraph{第六级标题$3$}
-
-第六级下的一些文字
-
-\subsubparagraph{第七级标题$1$}
-
-第七级下的一些文字
-
-\clearpage
-
-\xsubsection{加粗，斜体与其他字体设置}{Bold, Emph and Other Font Settings}
-
-在中文学位论文的写作中，不推荐使用加粗，斜体等方式突出重点。
-
-使用\clist{\textbf{text}}进行可以对字加粗；同时，请注意到在英文中，正确的强调方式不是使用加粗，而是使用斜体，即使用\clist{\emph{text}}进行强调。如：
-\begin{texcode}[]{}
-  为了突出\textbf{重点}，英文可以这样：This is the \emph{key question}.
-\end{texcode}
-
-使用\clist{\textit{text}}、\clist{\underline{text}}等实现斜体，下划线等格式。
-
-
-
-
-
-\xsubsection{脚注及其使用}{Footnotes}
-
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  脚注可用小号字（一般小五号宋体）列在相应正文同一页最下部并与正文部分用细线（版面宽度的1/4长）隔开。
-\end{tcolorbox}
-
-脚注\footnote{脚注序号“\ding{172}，……，\ding{180}”的字体是“正文”，不是“上标”，序号与脚注内容文字之间空$1$个半角字符，脚注的段落格式为：单倍行距，段前空$0$磅，段后空$0$磅，悬挂缩进$1.5$字符；中文用宋体，字号为小五号，英文和数字用Times New Roman字体，字号为$9$磅；中英文混排时，所有标点符号（例如逗号“，”、括号“（）”等）一律使用中文输入状态下的标点符号，但小数点采用英文状态下的样式“.”。}\footnote{脚注序号“\ding{172}，……，\ding{180}”的字体是“正文”，不是“上标”，序号与脚注内容文字之间空$1$个半角字符，脚注的段落格式为：单倍行距，段前空$0$磅，段后空$0$磅，悬挂缩进$1.5$字符；中文用宋体，字号为小五号，英文和数字用Times New Roman字体，字号为$9$磅；中英文混排时，所有标点符号（例如逗号“，”、括号“（）”等）一律使用中文输入状态下的标点符号，但小数点采用英文状态下的样式“.”。}\footnote{脚注序号“\ding{172}，……，\ding{180}”的字体是“正文”，不是“上标”，序号与脚注内容文字之间空$1$个半角字符，脚注的段落格式为：单倍行距，段前空$0$磅，段后空$0$磅，悬挂缩进$1.5$字符；中文用宋体，字号为小五号，英文和数字用Times New Roman字体，字号为$9$磅；中英文混排时，所有标点符号（例如逗号“，”、括号“（）”等）一律使用中文输入状态下的标点符号，但小数点采用英文状态下的样式“.”。}是对文中有关内容的解释、说明或补充，使用上角标（序号\ding{172}、\ding{173}、$\cdots$）进行标注。
-
-脚注可以通过 \clist{\footnote{}}自动编号生成，也可使用\clist{\footnotetex{text}}手动添加脚注。
-
-摘要中关于项目资助的标识，是使用脚注生成的：
-
-\begin{tcolorbox}
-  \lstinline|\footnotetext{*本研究得到某某基金（编号：）的资助}|
-\end{tcolorbox}
-
-
-\clearpage
-
-\xsection{数字、公式和定理环境}{Equation and Theorem}
-
-\xsubsection{数字与单位}{Numbers and Units}
-
-模板引入了\clist[columbiablue]{siunitx}宏包实现数字与单位的正确排版，具体使用细节请自行查看该宏包，即 \clist{texdoc siunitx}。
-
-为了输入不同格式及角度的数字，可以使用\clist{\num{3.45d-4}}得到\num{3.45d-4}，使用\clist{\num{-e10}}得到\num{-e10}，使用\clist{\ang{1;2;3}}得到\ang{1;2;3}，避免了手动调节格式的问题。
-
-该宏包预先定义了部分单位，可以直接调用，同时生成较为复杂的单位。如：
-
-使用\clist{\SI{10}{\hertz}}得到 \SI{10}{\hertz}。
-
-\xsubsection{公式、矩阵与数学符号}{Equations, Matrix and Mathematical Symbols}
-
-
-\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
-  \begin{enumerate}[leftmargin=0.5cm]
-    \item 公式应另起一行，居中编排，较长的公式尽可能在等号后换行，或者在“+”、“-”等符号后换行。公式中分数线的横线，长短要分清，主要的横线应与等号取平。
-    \item 公式后应注明编号，公式号应置于小括号中，如公式（2-3）。写在右边行末，中间不加虚线；
-    \item 公式下面的“式中：”两字左起顶格编排，后接符号及其解释；解释顺序为先左后右，先上后下；解释与解释之间用“；”隔开。
-    \item 公式中各物理量及量纲均按国际标准（SI）及国家规定的法定符号和法定计量单位标注，禁止使用已废弃的符号和计量单位。
-  \end{enumerate}
-\end{tcolorbox}
-
-此部分是 \LaTeX 中比较有趣的一部分，具体的使用细节请自行查阅资料。
-
-\begin{texcode}[]{}
-  公式如下：
-  \begin{equation}
-      -e^{\max}_\text{dis} \leq a_t \leq e^{\max}_\text{ch}\label{equation:c1:mdl:cstr_dis}
-  \end{equation}
-  式中：$e$为xxx；$a$为xxx。
-\end{texcode}
-
-所以如\cref{equation:c1:mdl:cstr_dis}所示：
-\begin{equation}\label{equation:c1:exp}
-    -e^{\max}_\text{dis} \leq a_t \leq e^{\max}_\text{ch}
-\end{equation}
-
-其中，数学公式可以使用\clist{\boldmath..\unboldmath}对整体进行加粗：
-
-\begin{texcode}[]{}
-\boldmath
-\begin{equation}
-  \biggl(\int_{-\infty}^\infty e^{-x^2}\diff x\biggr)^2 
-\end{equation}
-\unboldmath
-\end{texcode}
-
-如果只需对某个元素调整，可以通过\clist{\boldsymbol}，或使用\clist[columbiablue]{unicode-math}提供的，以\clist{\sym}开始的命令族，如\clist{\symup, \symbfup, \symit, \symbfit}：
-\begin{texcode}[]{}
-  \begin{equation}
-    \biggl(\int_{-\infty}^\infty \symbfit{e}^{-\symup{x}^2}\diff \symbfup{x}\biggr)^2 
-  \end{equation}
-\end{texcode}
-不建议再使用标准 \LaTeX 及 amsmath 扩展提供的 \clist{\mathbf}、\clist{\mathcal} 等输入不同样式的字母，可能会导致使用文本字体而非数学字体(的粗体形式)。
-
-请注意，本模板已经定义了\clist{\diff}命令作为微分符号，请不要自己使用新的符号，使用效果如下：
-\begin{align}\label{equation:c1:diff}
-  \biggl(\int_{-\infty}^\infty e^{-x^2}\diff x\biggr)^2 
-    &= \int_{-\infty}^\infty\int_{-\infty}^\infty e^{-(x^2+y^2)}\diff x\diff y \\
-    &= \int_0^{2\pi}\int_0^\infty e^{-r^2}r\diff r\diff\theta \\
-    &= \int_0^{2\pi}\biggl(-{e^{-r^2}\over2}\bigg\vert_{r=0}^{r=\infty}\,\biggr)\diff\theta \\
-    &= \pi
-\end{align}
-
-
-同时，定义了部分用于简化输入的命令：
-
-\begin{texcode}[sidebyside]{}
-  $\seq{x}{n}$ \\ % serise
-  $\iprod{i}{j}$ \\ % inner product
-  $\mbs{B}$  % \boldsymbol
-\end{texcode}
-
-\xsubsection{定理相关}{Theorems}\label{section:Environments for math}
-
-本模板通过\clist[columbiablue]{thmtools}宏包定义了以下环境，其中\textbf{证明}环境默认具有缩进，没有编号，同时使用\clist{\qedhere}结束证明，其他环境样式一致。
-
-\begin{table}[H]
-  \begin{tblr}{
-    colspec={*{6}{X[c]}},
-    vline{4},
-  }
-  \toprule
-    环境 & 英文名称 & 中文名称 & 环境 & 英文名称 & 中文名称 \\
-  \midrule
-    proof & Proof & 证明 & theorem & Theorem & 定理 \\
-    axiom & Axiom & 公理 & corollary & Corollary & 推论 \\
-    lemma & Lemma & 引理 & definition & Definition & 定义 \\
-    example & Example & 例子 & proposition & Proposition & 命题 \\
-    assumption & Assumption & 假设 & remark & Remark & 注 \\
-    problem & Problem & 问题 & conjecture & Conjecture & 猜想 \\
-  \bottomrule
-  \end{tblr}
-\end{table}
-
-
-\begin{texcode}[]{}
-  \begin{theorem}[勾股定理]\label{theorem:pt}
-    若 $a,b$ 为直角三角形的两条直角边，$c$ 为斜边，那么 $a^2 + b^2 + c^2.$
-  \end{theorem}
-
-  \begin{proof}
-    通过\ldots
-
-    所以：
-    \begin{equation*}
-        G(x, y) = G(y, x).  \qedhere
-    \end{equation*}
-  \end{proof}
-\end{texcode}
-
-\begin{proposition}
-  所以：
-  \begin{equation*}
-      G(x, y) = G(y, x).
-  \end{equation*}
-\end{proposition}
-
-\begin{conjecture}[勾股定理]
-    若 $a,b$ 为直角三角形的两条直角边，$c$ 为斜边，那么 $a^2 + b^2 + c^2.$
-\end{conjecture}
-
-\begin{axiom}[勾股定理]
-    若 $a,b$ 为直角三角形的两条直角边，$c$ 为斜边，那么 $a^2 + b^2 + c^2.$ 若 $a,b$ 为直角三角形的两条直角边，$c$ 为斜边，那么 $a^2 + b^2 + c^2.$ 若 $a,b$ 为直角三角形的两条直角边，$c$ 为斜边，那么 $a^2 + b^2 + c^2.$
-\end{axiom}
-
-\begin{definition}[勾股定理]
-    若 $a,b$ 为直角三角形的两条直角边，$c$ 为斜边，那么 $a^2 + b^2 + c^2.$
-\end{definition}
-
-\xsection{其他环境}{Other Environments}
-
-\xsubsection{枚举环境}{Enumerates}
-
-\begin{texcode}[]{}
-  \begin{enumerate}
-    \item 123
-    \item 231421
-    \item 124124
-  \end{enumerate}
-\end{texcode}
-
-
-\xsection{正文}{Text}
-
-\zhlipsum[1]
-
-\xsubsection{正文}{Text}
-
-\zhlipsum[2]
-
-\xsubsection{正文}{Text}
-
-\zhlipsum[3]

@@ -4,7 +4,7 @@
         "editor.insertSpaces": true,
     },
     "latex-workshop.view.pdf.viewer": "tab",
-    "latex-workshop.latex.autoBuild.run": "never",
+    "latex-workshop.latex.autoBuild.run": "onSave",
     "latex-workshop.latex.outDir": "./Build/",
     "latex-workshop.latex.rootFile.useSubFile": false,
     "latex-workshop.view.pdf.internal.synctex.keybinding": "double-click",
@@ -91,4 +91,6 @@
             ]
         },
     ],
+
+    "editor.wordWrap": "on",    
 }

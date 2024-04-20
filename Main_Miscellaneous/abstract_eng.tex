@@ -1,16 +1,14 @@
 
 % !TeX root = ../main.tex
 \begin{englishabstract}
-    \footnotetext{*The work was supported by the Foundation (foundation ID).}
-    % \astfootnote{The work was supported by the Foundation (foundation ID).}
-    \blindtext
-
-    \blindtext
-
-    \blindtext
-
-    \blindtext
-
-    \englishkeywordstype{MHD equations; Finite element methods; Decoupled scheme; Stability; Convergence; Structure preserving; Preconditioning method}{Theoretical Research}
+    In data center and cluster computing system, lossless network is more and more popular. In commodity Ethernet, lossless forwarding is achieved by hop-by-hop priority-based flow control (PFC). To avoid buffer overflow, PFC-enabled devices need to reserve some buffer space as headroom, which is for absorbing in-flight packets during the delay for backpressure message to take effect. However, the inefficiency and performance issues of existing headroom management schemes have become increasingly serious, lossless netork is calling for a more efficient approach. To solving these problems, this thesis innovatively proposes the ``dynamic and shared'' idea for both on-chip buffer system and hybrid buffer system in lossless network. The main research contributions and achievements are as follows:
+    
+    For on-chip buffer system, this thesis proposes a dynamic and shared headroom management scheme (DSH) to slove the problems in existing static and isolated scheme (SIH): (1) Headroom occupies considerable buffer. (2) Headroom allocation is inefficient. DSH only statically reserve enough headroom for each port. The reserved headroom can be shared among queues within a port. DSH dynamically allocates headroom for each queue based on its congestion status, which can be shared among all queues. Compared to SIH, DSH can significantly improve buffer utilization and reduce the PFC messages through statistical multiplexing.
+        
+    For hybrid buffer system, this thesis proposes another dynamic and shared headroom management scheme (H-DSH) to solve the problems in existing headroom allocation scheme (H-SIH): (1) Burst absroption is limited by off-chip bandwidth. (2) Global pause damages the throughput of innocent flow. (3) Inevitable packet dropping between long-haul forwarding. During buffer allocation, H-DSH takes off-chip buffer as the central focus. The shared buffer partitition is expanded by off-chip buffer, while giving priority to the headroom allocation from off-chip buffer. When the available off-chip bandwidth is limited, H-DSH proactively triggers the pause message of selected congested queues. Furthermore, H-DSH considers packet sensitivity characteristics when making decisions on where to store.
+    
+    Extensive simulations show that DSH can absorb 4x more bursts without triggering PFC messages and reduce the flow completion time by up to ~31.1\%. H-DSH can absorb 3x more bursts through off-chip buffer, reduce the flow completion time by up to ~14.8\% and expand 4x more distance for lossless forwarding.  
+    
+    \englishkeywordstype{Lossless network; Headroom; On-chip buffer system; Hybrid buffer system}{Application Research}
 
 \end{englishabstract}

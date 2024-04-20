@@ -117,6 +117,27 @@
 \RequirePackage{tikz}
 \RequirePackage{tikz-3dplot}
 \usetikzlibrary{shapes,arrows,positioning,calc}
+\usetikzlibrary{arrows}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{decorations}
+\usetikzlibrary{decorations.pathreplacing}
+\usetikzlibrary{decorations.pathmorphing}
+\usetikzlibrary{fit}
+\usetikzlibrary{calc}
+\usetikzlibrary{intersections}
+\usetikzlibrary{matrix}
+\usetikzlibrary{patterns}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes}
+\definecolor{darkred}{HTML}{A00000}
+\definecolor{darkgreen}{HTML}{00A000}
+\definecolor{darkblue}{HTML}{5060D0}
+\definecolor{darkorange}{HTML}{F25900}
+\definecolor{darkpurple}{HTML}{500050}
+\definecolor{darkcyan}{HTML}{008B8B}
+\definecolor{mediumpurple}{HTML}{9370DB}
+\definecolor{melon}{HTML}{FDBCB4}
 
 
 %%% chinese characters %%%
@@ -484,9 +505,22 @@
 
 %%% algorithm %%%
 %%% 算法环境 %%%
-\RequirePackage[chapter]{algorithm}
-\RequirePackage{algpseudocode}
-\floatname{algorithm}{算法}
+% \RequirePackage[chapter]{algorithm}
+% \RequirePackage{algpseudocode}
+% \floatname{algorithm}{算法}
+
+% compat
+\RequirePackage[ruled, algochapter,linesnumbered,commentsnumbered]{algorithm2e}
+\SetKwRepeat{Do}{do}{while}
+
+\SetKwComment{Comment}{\(\rhd\)\hspace{2mm}}{\(\lhd\)}
+\SetCommentSty{mycommentstyle}
+\newcommand{\mycommentstyle}[1]{{\color{gray}\itshape#1}}
+
+\SetKwInOut{Input}{输入}
+\SetKwInOut{Output}{输出}
+\renewcommand{\And}{\textbf{\textup{ and }}}
+\newcommand{\Or}{\textbf{\textup{ or }}}
 
 
 %%% colorbox %%%
@@ -595,7 +629,8 @@
   \declaretheorem[name={Problem},style=style_theorem,numberwithin=chapter]{problem}
   \declaretheorem[name={Conjecture},style=style_theorem,numberwithin=chapter]{conjecture}
 \else
-  \declaretheorem[name={证明},style=style_proof,unnumbered,preheadhook={\setlength{\parindent}{5.1em}}]{proof}
+  % \declaretheorem[name={证明},style=style_proof,unnumbered,preheadhook={\setlength{\parindent}{5.1em}}]{proof}
+  \declaretheorem[name={证明},style=style_proof,unnumbered,preheadhook={\setlength{\parindent}{4.2em}\hangindent 2.2em}]{proof}  
   \declaretheorem[name={定理},style=style_theorem,numberwithin=chapter]{theorem}
   \declaretheorem[name={公理},style=style_theorem,numberwithin=chapter]{axiom}
   \declaretheorem[name={推论},style=style_theorem,numberwithin=chapter]{corollary}
@@ -726,6 +761,13 @@
 \RequirePackage{float}
 \RequirePackage{newfloat}
 
+% compat
+\RequirePackage{multirow}
+\RequirePackage{tabularx}
+\RequirePackage{xltabular}
+\RequirePackage{longtable}
+\RequirePackage{tabu}
+
 \RequirePackage{multicol}
 \RequirePackage{tabularray}
 \UseTblrLibrary{booktabs}
@@ -743,6 +785,11 @@
 \setlength{\lightrulewidth}{1.0pt}
 \setlength{\arrayrulewidth}{0.5pt}
 
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\newcolumntype{Z}{>{\raggedleft\arraybackslash}X}
+\tabcolsep=1ex
+\tabulinesep=\tabcolsep
+
 % tikz
 \newlength\tikzboxwidth
 \newlength\tikzboxheight
@@ -758,6 +805,23 @@
   \end{tikzpicture}%
 }
 
+\tikzset{
+    every picture/.append style= {
+        line cap=round, line join=round,
+    },
+    align=center,
+    server/.style={
+        execute at begin node={
+            \includegraphics[width=0.8cm]{fileserver.pdf}
+        },
+    },
+    switch/.style={
+        execute at begin node={
+            \includegraphics[width=1.5cm]{workgroup switch.pdf}
+        },
+    },
+}
+
 % \def\hlinew#1{%
 %   \noalign{\ifnum0=`}\fi\hrule \@height #1 \futurelet
 %   \reserved@a\@xhline}
@@ -771,6 +835,9 @@
 }
 \AtBeginEnvironment{tblr}{\wuhao}
 \AtBeginEnvironment{longtblr}{\wuhao}
+\AtBeginEnvironment{tabular}{\wuhao}
+\AtBeginEnvironment{tabularx}{\wuhao}
+\AtBeginEnvironment{xltabular}{\wuhao}
 
 
 %%% caption %%%
@@ -806,7 +873,8 @@
   \renewcommand\thelstlisting{\arabic{chapter}-\arabic{lstlisting}}
 
 }
-\renewcommand{\thealgorithm}{\arabic{chapter}-\arabic{algorithm}}
+% \renewcommand{\thealgorithm}{\arabic{chapter}-\arabic{algorithm}}
+\renewcommand{\thealgocf}{\arabic{chapter}-\arabic{algocf}}
 
 \ifthesis@english
   \renewcommand{\figurename}{Figure}
@@ -815,6 +883,7 @@
   \renewcommand{\listtablename}{List of Tables}
   \renewcommand{\lstlistingname}{Code}
   \renewcommand{\listofalgorithms}{List of Algorithms}
+  \SetAlgorithmName{Algorithm}{Algorithm}{List of Algorithms}
 \else
   \renewcommand{\figurename}{图}
   \renewcommand{\tablename}{表}
@@ -822,6 +891,7 @@
   \renewcommand{\listtablename}{表目录}
   \renewcommand{\lstlistingname}{源码}
   \renewcommand{\listofalgorithms}{算法列表}
+  \SetAlgorithmName{算法}{算法}{算法列表}
 \fi
 
 
@@ -1497,7 +1567,8 @@
 %   \end{spacing}
 % }{}{}
 
-\RequirePackage[hyperref=true,backend=biber,defernumbers=true,style=gb7714-2015,gbalign=left,gbpub=false]{biblatex}
+\RequirePackage[hyperref=true,backend=biber,defernumbers=true,style=gb7714-2015,gbalign=left,gbpunctin=false,gbpub=false]{biblatex}
+\DefineBibliographyStrings{english}{in={}}
 \renewcommand{\bibfont}{\zihao{5}}
 \setlength{\bibitemsep}{0ex}
 \setlength{\bibnamesep}{0ex}
