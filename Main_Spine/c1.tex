@@ -2,7 +2,7 @@
 
 \xchapter{绪论}{Introductions}
 
-\xsection{研究背景与意义}{Backgrounds and Significance}
+\xsection{研究背景与意义}{Background and Significance}
 
 % 近年来，在数据中心和集群计算系统中，无损网络已经成为一种流行的趋势。一般来说，数据包丢失引起的重传很容易导致吞吐量减少、完成时间增加，甚至错过应用程序截止日期。
 
@@ -18,9 +18,9 @@ PFC本身可能对传输性能造成损害。在大规模网络中，PFC暂停�
 
 一方面，在数据中心网络内部，链路带宽已经从1Gbps快速增长到40Gbps再到100Gbps，目前仍在持续增长中，即将达到400Gbps\cite{SIGCOMM16RDMA,SIGCOMM15Jupiter}。经过调研发现，在当前的发展趋势下，数据中心网络中PFC的触发频率不断增加。具体地，交换芯片缓存中的净空缓存预留需求量和链路带宽呈正相关关系，随着数据中心网络链路带宽增加，需要预留的净空缓存总量也随之同比例增加。然而，为了高速、低时延的内存访问，现代数据中心交换机中普遍采用片上缓存。受限于芯片面积和成本，交换芯片上的缓存容量并不能以链路带宽增长速度同等程度增加\cite{INFOCOM20BCC,ICNP21FlashPass,BS19BFC}，在过去十年的时间里，片上缓存容量和交换带宽的比值已经减小超过四倍。
 
-在数据中心链路带宽的增长趋势下，交换机需要预留更多缓存空间作为净空缓存，净空缓存空间严重挤压正常流量能够占用的缓存空间，使得队列长度很容易到达PFC阈值从而导致频繁的PFC触发。即使最新的拥塞控制（Congestion Control，CC）算法\cite{SIGCOMM15DCQCN,SIGCOMM15TIMELY,SIGCOMM16RDMA,SIGCOMM19HPCC}可以将交换机缓存占用维持在一个较低的水平，上述问题仍然无法完全解决，其原因在于端到端拥塞控制至少需要一个往返时延（Round-Trip Time，RTT）的时间来响应拥塞，对于短时间内的拥塞无能为力，然而短时间内的拥塞在数据中心网络中是十分常见的。研究表明，在未来的数据中心网络中，大多数流将会在一个RTT的时间内完成\cite{SIGCOMM18Homa,SIGCOMM20Aeolus}，并且大多数拥塞将会由持续时间不足一个RTT的突发导致\cite{IMC17microburst}。因此，在一个RTT的时间内，能否避免PFC触发仍然取决于缓存管理策略。
+在数据中心链路带宽的增长趋势下，交换机需要预留更多缓存空间作为净空缓存，净空缓存空间严重挤压正常流量能够占用的缓存空间，使得队列长度很容易到达PFC阈值从而导致频繁的PFC触发。即使最新的拥塞控制算法\cite{SIGCOMM15DCQCN,SIGCOMM15TIMELY,SIGCOMM16RDMA,SIGCOMM19HPCC}可以将交换机缓存占用维持在一个较低的水平，上述问题仍然无法完全解决，其原因在于端到端拥塞控制至少需要一个往返时延（Round-Trip Time，RTT）的时间来响应拥塞，对于短时间内的拥塞无能为力，然而短时间内的拥塞在数据中心网络中是十分常见的。研究表明，在未来的数据中心网络中，大多数流将会在一个RTT的时间内完成\cite{SIGCOMM18Homa,SIGCOMM20Aeolus}，并且大多数拥塞将会由持续时间不足一个RTT的突发导致\cite{IMC17microburst}。因此，在一个RTT的时间内，能否避免PFC触发仍然取决于缓存管理策略。
 
-数据中心内部交换机通常部署片上缓存系统。经过调研发现，片上缓存系统中的现行静态净空缓存管理策略（Static Isolated Headroom，SIH）存在固有的低效性，根源在于SIH按照最坏情况给每个端口的每个入口队列静态预留净空缓存空间，从而导致严重的缓存空间浪费：
+数据中心内部交换机通常部署片上缓存系统。经过调研发现，片上缓存系统中的现行静态净空缓存管理策略SIH存在固有的低效性，根源在于SIH按照最坏情况给每个端口的每个入口队列静态预留净空缓存空间，从而导致严重的缓存空间浪费：
 
 1）并不是所有的入口队列都需要占用净空缓存，当且仅当队列发生拥塞时才开始占用，而且所有队列同时拥塞的可能性极低。所以在大多数情况下，只有少量的净空缓存空间被使用。
 
@@ -160,7 +160,7 @@ Cisco针对异构缓存系统提出了一个驱逐模型\cite{CiscoNcs5500}，�
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.95\linewidth]{Figures/overall_architechture.pdf}
+  \includegraphics[width=\linewidth]{Figures/overall_architechture.pdf}
   \caption{研究内容基本框架}
   \label{c4:s1:ss1:overall architechture}
 \end{figure}

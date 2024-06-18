@@ -17,7 +17,7 @@
                 %                             but be careful about arguments in `\degree' and `\subject'
     % english,  % 可选项：   英文正文请选择此项
                 % Optional:  For english main content, It will change some auto-generated matter into English
-    blind,    % 可选项：   论文用于盲审请选择此项，将隐去致谢页内容(但保留标题)、答辩委员会会议决议页内容(同前)、
+    % blind,    % 可选项：   论文用于盲审请选择此项，将隐去致谢页内容(但保留标题)、答辩委员会会议决议页内容(同前)、
                 %            常规评阅人名单页内容(同前)，将隐去题名页、答辩委员会页所有人名，
                 %            注意：如果非自动读取成果数据库，请自行修改 `攻读学位期间取得的研究成果' 内的内容格式
                 % Optional:  For blind review, It will not generate Acknowledgements(Content), Decision of Defense
@@ -74,27 +74,24 @@
 % 答辩委员会委员 显示的顺序和这里的一样 第一个人是主席
 % Committee member of your defence, notice that the order shows in the thesis is same as here, and the first one is the chairperson
 % each member should be put as {Organization,Name,Title} split by comma
-\addcommitteemember{西安交通大学,张长长,教授}
-\addcommitteemember{西安理工大学,王旺旺,教授}
-\addcommitteemember{国网陕西经济技术研究院,李力,高工}
-\addcommitteemember{西安交通大学,东方不败,副教授}
-\addcommitteemember{西安交通大学,赵照,研究员}
+\addcommitteemember{西安交通大学,李昊,副教授}
+\addcommitteemember{西安交通大学,赵英良,教授}
+\addcommitteemember{西安交通大学,赵玺,副教授}
+\addcommitteemember{西安交通大学,陈妍,副教授}
+\addcommitteemember{西安交通大学,王志文,副教授}
 
 % 答辩时间（手动指定）
 % Defence date, input manually
-\defensedate{2024}{04}{20}
+\defensedate{2024}{05}{14}
 
 % 答辩地点（涉密论文请手动设置为「西安交通大学」）
 % Defence location, default value is 「西安交通大学」
-\defenseloc{}
+\defenseloc{创新港4-6208}
 
 % 常规审阅人 要求和答辩委员会委员一样
 % General reviewer list, same requirements as the committee member
-\addgeneralreviewer{西安交通大学,张长长,教授}
-\addgeneralreviewer{西安理工大学,王旺旺,教授}
-\addgeneralreviewer{国网陕西经济技术研究院,李力,高工}
-\addgeneralreviewer{西安交通大学,东方不败,副教授}
-\addgeneralreviewer{西安交通大学,赵照,研究员}
+% \addgeneralreviewer{哈尔滨工业大学,孙鑫,副教授}
+
 
 % 学院
 % School or Faculty, unused now
@@ -192,8 +189,8 @@
 % 添加 [auto] 参数则读取通过 \addachivementresource 添加的数据库，否则读取 Main_Miscellaneous/achievement.tex 的内容 注意盲审时需要手动修改格式
 % 自动读取的数据库中 若条目含有 AUTHOR+an = {X=highlight} 则第 X 位作者会被加粗
 % Achievement, argument [auto] will load data from database added by \addachivementresource, or the data from Main_Miscellaneous/achievement.tex
-\thesisachivements
-% \thesisachivements[auto]
+% \thesisachivements
+\thesisachivements[auto]
 
 % 答辩委员会决议 修改 Main_Miscellaneous/decision.tex 中的内容
 % Decision, Rewrite your content in Main_Miscellaneous/decision.tex
@@ -201,7 +198,7 @@
 
 % [自动生成] 常规评阅人名单 需要手动指定两个数字作为'本学位论文共接受 {#1} 位专家评阅，其中常规评阅人 {2}名'内容参数
 % [Auto Generate] Reviewer List, set two number as the content in this page 
-\thesisreviewers{7}{5}
+\thesisreviewers{2}{0}
 
 % [自动生成] 独创性声明
 % [Auto Generate] Originality Declaration
